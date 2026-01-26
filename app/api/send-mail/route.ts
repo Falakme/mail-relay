@@ -3,6 +3,8 @@ import { sendEmail } from '@/lib/email-service';
 import { EmailRequest } from '@/lib/types';
 import { getApiKeyByKey, updateApiKeyLastUsed } from '@/lib/database';
 
+export const dynamic = 'force-dynamic';
+
 // Validate API key from Authorization header
 function validateApiKey(request: NextRequest): { valid: boolean; keyId?: string } {
   const authHeader = request.headers.get('Authorization');

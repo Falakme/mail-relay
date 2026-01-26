@@ -4,6 +4,8 @@ import { getEmailLogCount } from '@/lib/database';
 import Database from 'better-sqlite3';
 import path from 'path';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);

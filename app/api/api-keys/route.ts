@@ -9,6 +9,8 @@ import {
   toggleApiKeyStatus, 
   updateApiKey 
 } from '@/lib/database';
+
+export const dynamic = 'force-dynamic';
 import { ApiKey } from '@/lib/types';
 
 // Generate a secure random API key
