@@ -15,6 +15,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Falak Mail Relay",
   description: "A secure mail relay service with NotificationAPI and Brevo fallback",
+  icons: {
+    icon: "https://falakme.github.io/brand-assets/logos/core/icon-circular.svg",
+  },
 };
 
 export default function RootLayout({

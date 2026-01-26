@@ -1,267 +1,1359 @@
 'use client';
 
-import { useState } from 'react';
-import Link from 'next/link';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
-export default function Home() {
-  return (
-    <div className="min-h-screen bg-background">
-      {/* Hero Section */}
-      <header className="bg-brand-primary text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-          <div className="text-center">
-            <h1 className="text-4xl md:text-5xl font-bold mb-4 flex items-center justify-center gap-3">
-              <img 
-                src="https://falakme.github.io/brand-assets/logos/core/icon.svg" 
-                alt="Falak" 
-                className="h-[1em] invert"
-              />
-              Mail Relay
-            </h1>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link
-                href="/admin"
-                className="bg-white text-brand-primary px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors"
-              >
-                Admin Panel
-              </Link>
-              <a
-                href="#test"
-                className="bg-brand-accent text-white px-8 py-3 rounded-lg font-semibold hover:bg-opacity-80 transition-colors"
-              >
-                Test API
-              </a>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* API Documentation */}
-      <section className="py-16 px-4 bg-brand-accent/20 border-t border-brand-accent/30">
-        <div className="max-w-4xl mx-auto">
-          <h2 className="text-3xl font-bold text-center text-foreground mb-12">API Documentation</h2>
-          
-          <div className="bg-brand-accent/40 border border-brand-accent/50 rounded-xl shadow-lg p-8 mb-8">
-            <h3 className="text-xl font-semibold mb-4">Send Email</h3>
-            <div className="bg-brand-accent/60 border border-brand-accent/70 rounded-lg p-4 mb-4">
-              <code className="text-sm">POST /api/send-mail</code>
-            </div>
-            <h4 className="font-medium text-foreground mb-2">Headers:</h4>
-            <pre className="bg-brand-accent/60 border border-brand-accent/70 rounded-lg p-4 text-sm overflow-x-auto mb-4">
-{`Authorization: Bearer fmr_your_api_key_here
-Content-Type: application/json`}
-            </pre>
-            <h4 className="font-medium text-foreground mb-2">Request Body:</h4>
-            <pre className="bg-brand-accent/60 border border-brand-accent/70 rounded-lg p-4 text-sm overflow-x-auto">
-{`{
-  "to": "recipient@example.com",
-  "subject": "Email Subject",
-  "body": "Plain text body",
-  "html": "<p>Optional HTML body</p>",
-  "from": "sender@example.com",
-  "senderName": "My App",
-  "replyTo": "reply@example.com"
-}`}
-            </pre>
-            <h4 className="font-medium text-foreground mt-4 mb-2">Response:</h4>
-            <pre className="bg-brand-accent/60 border border-brand-accent/70 rounded-lg p-4 text-sm overflow-x-auto">
-{`{
-  "success": true,
-  "message": "Email sent successfully via NotificationAPI",
-  "provider": "notificationapi",
-  "logId": "uuid-here"
-}`}
-            </pre>
-          </div>
-
-          <div className="bg-brand-accent/40 border border-brand-accent/50 rounded-xl shadow-lg p-8">
-            <h3 className="text-xl font-semibold text-foreground mb-4">Check Status</h3>
-            <div className="bg-brand-accent/60 border border-brand-accent/70 rounded-lg p-4 mb-4">
-              <code className="text-sm">GET /api/status</code>
-            </div>
-            <p className="text-foreground/80">
-              Returns system health, total emails sent, and rate limit status for both providers.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* Test Section */}
-      <section id="test" className="py-16 px-4 bg-background border-t border-brand-accent/30">
-        <div className="max-w-2xl mx-auto">
-          <h2 className="text-3xl font-bold text-center text-foreground mb-12">Test the API</h2>
-          <TestEmailForm />
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="bg-brand-accent text-white py-8 px-4">
-        <div className="max-w-7xl mx-auto text-center">
-          <p className="text-white/70">
-            © {new Date().getFullYear()} Falak.me
-          </p>
-        </div>
-      </footer>
-    </div>
-  );
-}
-
-function TestEmailForm() {
-  const [formData, setFormData] = useState({
-    apiKey: '',
-    to: '',
-    subject: '',
-    body: '',
-    from: '',
-    senderName: '',
-  });
+export default function AdminPage() {
+  const router = useRouter();
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [siteKey, setSiteKey] = useState('');
+  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setLoading(true);
-    setResult(null);
+  useEffect(() => {
+    checkAuth();
+  }, []);
 
+  async function checkAuth() {
     try {
-      const res = await fetch('/api/send-mail', {
+      const res = await fetch('/api/auth', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${formData.apiKey}`,
-        },
-        body: JSON.stringify({
-          to: formData.to,
-          subject: formData.subject,
-          body: formData.body,
-          ...(formData.from && { from: formData.from }),
-          ...(formData.senderName && { senderName: formData.senderName }),
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'check' }),
       });
       const data = await res.json();
-      setResult({ success: data.success, message: data.message });
-    } catch (error) {
-      setResult({ success: false, message: 'Network error. Please try again.' });
+      setIsAuthenticated(data.authenticated);
+    } catch {
+      setIsAuthenticated(false);
+    }
+  }
+
+  async function handleLogin(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      const res = await fetch('/api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'login', siteKey }),
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        setIsAuthenticated(true);
+      } else {
+        setError(data.message || 'Login failed');
+      }
+    } catch {
+      setError('Network error. Please try again.');
     } finally {
       setLoading(false);
     }
   }
 
+  async function handleLogout() {
+    try {
+      await fetch('/api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'logout' }),
+      });
+      setIsAuthenticated(false);
+    } catch {
+      console.error('Logout failed');
+    }
+  }
+
+  if (isAuthenticated === null) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-pulse text-xl">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+            <div className="bg-brand-accent rounded-2xl shadow-2xl p-8">
+            <div className="text-center mb-8">
+              <div className="flex items-center justify-center gap-2 mb-2 text-3xl">
+                <img 
+                  src="https://falakme.github.io/brand-assets/logos/core/icon.svg" 
+                  alt="Falak" 
+                  className="h-[1em] invert"
+                />
+                <h1 className="font-bold">Mail Relay</h1>
+              </div>
+              <p className="text-foreground">Admin Panel Login</p>
+            </div>
+
+            <form onSubmit={handleLogin} className="space-y-6">
+              <div>
+                <label htmlFor="siteKey" className="block text-sm font-medium text-foreground mb-2">
+                  Site Key
+                </label>
+                <input
+                  type="password"
+                  id="siteKey"
+                  value={siteKey}
+                  onChange={(e) => setSiteKey(e.target.value)}
+                  className="w-full px-4 py-3 rounded-lg bg-background text-foreground focus:ring-2 focus:ring-brand-primary focus:border-brand-primary transition-all placeholder-foreground/50"
+                  placeholder="Enter your site key"
+                  required
+                />
+              </div>
+
+              {error && (
+                <div className="bg-red-600/30 text-red-100 px-4 py-3 rounded-lg text-sm border border-red-500/80">
+                  {error}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-brand-primary hover:bg-brand-primary/85 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? 'Logging in...' : 'Login'}
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return <AdminDashboard onLogout={handleLogout} />;
+}
+
+function AdminDashboard({ onLogout }: { onLogout: () => void }) {
+  const [activeTab, setActiveTab] = useState<'logs' | 'keys' | 'status' | 'docs'>('logs');
+
+  useEffect(() => {
+    // Get initial tab from URL hash
+    const hash = window.location.hash.slice(1) as 'logs' | 'keys' | 'status' | 'docs' | '';
+    if (hash && ['logs', 'keys', 'status', 'docs'].includes(hash)) {
+      setActiveTab(hash);
+    }
+  }, []);
+
+  const handleTabChange = (tab: 'logs' | 'keys' | 'status' | 'docs') => {
+    setActiveTab(tab);
+    window.location.hash = `#${tab}`;
+  };
+
   return (
-    <div className="bg-brand-accent/40 border border-brand-accent/50 rounded-xl shadow-lg p-8">
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div>
-          <label htmlFor="apiKey" className="block text-sm font-medium text-foreground mb-2">
-            API Key
-          </label>
-          <input
-            type="password"
-            id="apiKey"
-            value={formData.apiKey}
-            onChange={(e) => setFormData({ ...formData, apiKey: e.target.value })}
-            className="w-full px-4 py-3 rounded-lg border border-brand-accent/50 bg-brand-accent/60 text-foreground focus:ring-2 focus:ring-brand-primary focus:border-transparent transition-all font-mono text-sm placeholder-foreground/40"
-            placeholder="fmr_xxxxxxxxxxxx"
-            required
-          />
-          <p className="mt-1 text-xs text-foreground/60">
-            Generate an API key from the Admin Panel
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="bg-gradient-to-r from-brand-primary to-brand-primary/80 text-white shadow-lg">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center gap-2 text-2xl">
+              <img 
+                src="https://falakme.github.io/brand-assets/logos/core/icon.svg" 
+                alt="Falak" 
+                className="h-[1em] invert"
+              />
+              <h1 className="font-bold">Mail Relay</h1>
+            </div>
+            <button
+              onClick={onLogout}
+              className="bg-white/15 hover:bg-white/25 px-4 py-2 rounded-lg text-sm transition-colors border border-white/20"
+            >
+              Logout
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Navigation Tabs */}
+      <nav className="bg-brand-accent border-b border-brand-primary/40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex space-x-8">
+            {(['logs', 'keys', 'status', 'docs'] as const).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => handleTabChange(tab)}
+                className={`py-4 px-2 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === tab
+                    ? 'border-brand-primary text-brand-primary'
+                    : 'border-transparent text-foreground/70 hover:text-foreground hover:border-brand-primary/60'
+                }`}
+              >
+                {tab === 'logs' && 'Email Logs'}
+                {tab === 'keys' && 'API Keys'}
+                {tab === 'status' && 'System Status'}
+                {tab === 'docs' && 'Documentation'}
+              </button>
+            ))}
+          </div>
+        </div>
+      </nav>
+
+      {/* Content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {activeTab === 'logs' && <EmailLogsPanel />}
+        {activeTab === 'keys' && <ApiKeysPanel />}
+        {activeTab === 'status' && <StatusPanel />}
+        {activeTab === 'docs' && <DocsPanel />}
+      </main>
+    </div>
+  );
+}
+
+function EmailLogsPanel() {
+  const [logs, setLogs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(0);
+  const [limit, setLimit] = useState(20);
+  const [jumpToPageInput, setJumpToPageInput] = useState('');
+
+  useEffect(() => {
+    fetchLogs();
+  }, [page, limit]);
+
+  async function fetchLogs() {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/logs?limit=${limit}&offset=${page * limit}`);
+      const data = await res.json();
+      if (data.success) {
+        setLogs(data.logs);
+        setTotal(data.total);
+      }
+    } catch (error) {
+      console.error('Failed to fetch logs:', error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function deleteLog(id: string) {
+    if (!confirm('Are you sure you want to delete this log?')) return;
+    
+    try {
+      const res = await fetch('/api/logs', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchLogs();
+      }
+    } catch (error) {
+      console.error('Failed to delete log:', error);
+    }
+  }
+
+  const totalPages = Math.ceil(total / limit);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold text-foreground">Email Logs</h2>
+        <button
+          onClick={fetchLogs}
+          className="bg-brand-primary text-white px-4 py-2 rounded-lg text-sm hover:bg-brand-accent transition-colors"
+        >
+          Refresh
+        </button>
+      </div>
+
+      <div className="bg-brand-accent/40 border border-brand-accent/50 rounded-xl shadow overflow-hidden">
+        {loading ? (
+          <div className="p-8 text-center text-foreground/60">Loading...</div>
+        ) : logs.length === 0 ? (
+          <div className="p-8 text-center text-foreground/60">No email logs found</div>
+        ) : (
+          <>
+            {/* Top Pagination */}
+            {(totalPages > 1 || total > 0) && (
+              <div className="bg-brand-accent/60 border-b border-brand-accent/50 px-6 py-4 space-y-4">
+                {/* Results Info and Page Size */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div className="text-sm text-foreground/70">
+                    Showing {total === 0 ? 0 : page * limit + 1} to {Math.min((page + 1) * limit, total)} of {total} results
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label htmlFor="pageSize" className="text-sm text-foreground/70">Per page:</label>
+                    <select
+                      id="pageSize"
+                      value={limit}
+                      onChange={(e) => {
+                        setLimit(Number(e.target.value));
+                        setPage(0);
+                      }}
+                      className="px-2 py-1 rounded border border-brand-accent/50 bg-brand-accent/60 text-foreground text-sm focus:ring-2 focus:ring-brand-primary"
+                    >
+                      <option value={10}>10</option>
+                      <option value={20}>20</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Navigation Buttons */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setPage(0)}
+                      disabled={page === 0}
+                      className="px-3 py-1 rounded border border-brand-accent/50 text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-brand-accent/50 transition-colors"
+                      title="First page"
+                    >
+                      ⟨⟨
+                    </button>
+                    <div className="flex flex-wrap gap-1">
+                      {Array.from({ length: totalPages }, (_, i) => (
+                        <button
+                          key={i}
+                          onClick={() => setPage(i)}
+                          className={`w-8 h-8 rounded border text-sm font-medium transition-colors ${
+                            page === i
+                              ? 'bg-foreground text-brand-primary border-foreground'
+                              : 'bg-brand-primary border-brand-accent text-foreground hover:bg-brand-accent'
+                          }`}
+                        >
+                          {i + 1}
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      onClick={() => setPage(totalPages - 1)}
+                      disabled={page >= totalPages - 1}
+                      className="px-3 py-1 rounded border border-brand-accent/50 text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-brand-accent/50 transition-colors"
+                      title="Last page"
+                    >
+                      ⟩⟩
+                    </button>
+                  </div>
+
+                  {/* Page Jump */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-foreground/70">
+                      Page <span className="font-semibold text-foreground">{page + 1}</span> of <span className="font-semibold text-foreground">{totalPages}</span>
+                    </span>
+                    <div className="flex gap-1">
+                      <input
+                        type="number"
+                        min="1"
+                        max={totalPages}
+                        value={jumpToPageInput}
+                        onChange={(e) => setJumpToPageInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && jumpToPageInput) {
+                            const targetPage = Math.min(Math.max(1, Number(jumpToPageInput)) - 1, totalPages - 1);
+                            setPage(targetPage);
+                            setJumpToPageInput('');
+                          }
+                        }}
+                        className="w-12 px-2 py-1 rounded border border-brand-accent/50 bg-brand-accent/60 text-foreground text-sm focus:ring-2 focus:ring-brand-primary"
+                        placeholder="Go to"
+                      />
+                      <button
+                        onClick={() => {
+                          if (jumpToPageInput) {
+                            const targetPage = Math.min(Math.max(1, Number(jumpToPageInput)) - 1, totalPages - 1);
+                            setPage(targetPage);
+                            setJumpToPageInput('');
+                          }
+                        }}
+                        className="px-2 py-1 rounded border border-brand-accent/50 text-sm hover:bg-brand-accent/50 transition-colors"
+                      >
+                        Go
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Table */}
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-brand-accent/60 border-b border-brand-accent/50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-foreground/80 uppercase tracking-wider">
+                      Timestamp
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-foreground/80 uppercase tracking-wider">
+                      Recipient
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-foreground/80 uppercase tracking-wider">
+                      Subject
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-foreground/80 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-foreground/80 uppercase tracking-wider">
+                      API Key
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-foreground/80 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-brand-accent/30">
+                  {logs.map((log) => (
+                    <tr key={log.id} className="hover:bg-brand-accent/50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground/80">
+                        {new Date(log.timestamp).toLocaleString()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
+                        {log.recipient}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-foreground max-w-xs truncate">
+                        {log.subject}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span
+                          className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                            log.status === 'success'
+                              ? 'bg-green-900/30 text-green-400 border border-green-800'
+                              : log.status === 'fallback'
+                              ? 'bg-yellow-900/30 text-yellow-400 border border-yellow-800'
+                              : 'bg-red-900/30 text-red-400 border border-red-800'
+                          }`}
+                        >
+                          {log.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground/80">
+                        {log.apiKeyName || <span className="text-foreground/40 italic">Unknown</span>}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <button
+                          onClick={() => deleteLog(log.id)}
+                          className="text-red-400 hover:text-red-300"
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Bottom Pagination */}
+            {(totalPages > 1 || total > 0) && (
+              <div className="bg-brand-accent/60 border-t border-brand-accent/50 px-6 py-4 space-y-4">
+                {/* Results Info and Page Size */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div className="text-sm text-foreground/70">
+                    Showing {total === 0 ? 0 : page * limit + 1} to {Math.min((page + 1) * limit, total)} of {total} results
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label htmlFor="pageSize2" className="text-sm text-foreground/70">Per page:</label>
+                    <select
+                      id="pageSize2"
+                      value={limit}
+                      onChange={(e) => {
+                        setLimit(Number(e.target.value));
+                        setPage(0);
+                      }}
+                      className="px-2 py-1 rounded border border-brand-accent/50 bg-brand-accent/60 text-foreground text-sm focus:ring-2 focus:ring-brand-primary"
+                    >
+                      <option value={10}>10</option>
+                      <option value={20}>20</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Navigation Buttons */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setPage(0)}
+                      disabled={page === 0}
+                      className="px-3 py-1 rounded border border-brand-accent/50 text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-brand-accent/50 transition-colors"
+                      title="First page"
+                    >
+                      ⟨⟨
+                    </button>
+                    <div className="flex flex-wrap gap-1">
+                      {Array.from({ length: totalPages }, (_, i) => (
+                        <button
+                          key={i}
+                          onClick={() => setPage(i)}
+                          className={`w-8 h-8 rounded border text-sm font-medium transition-colors ${
+                            page === i
+                              ? 'bg-foreground text-brand-primary border-foreground'
+                              : 'bg-brand-primary border-brand-accent text-foreground hover:bg-brand-accent'
+                          }`}
+                        >
+                          {i + 1}
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      onClick={() => setPage(totalPages - 1)}
+                      disabled={page >= totalPages - 1}
+                      className="px-3 py-1 rounded border border-brand-accent/50 text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-brand-accent/50 transition-colors"
+                      title="Last page"
+                    >
+                      ⟩⟩
+                    </button>
+                  </div>
+
+                  {/* Page Jump */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-foreground/70">
+                      Page <span className="font-semibold text-foreground">{page + 1}</span> of <span className="font-semibold text-foreground">{totalPages}</span>
+                    </span>
+                    <div className="flex gap-1">
+                      <input
+                        type="number"
+                        min="1"
+                        max={totalPages}
+                        value={jumpToPageInput}
+                        onChange={(e) => setJumpToPageInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && jumpToPageInput) {
+                            const targetPage = Math.min(Math.max(1, Number(jumpToPageInput)) - 1, totalPages - 1);
+                            setPage(targetPage);
+                            setJumpToPageInput('');
+                          }
+                        }}
+                        className="w-12 px-2 py-1 rounded border border-brand-accent/50 bg-brand-accent/60 text-foreground text-sm focus:ring-2 focus:ring-brand-primary"
+                        placeholder="Go to"
+                      />
+                      <button
+                        onClick={() => {
+                          if (jumpToPageInput) {
+                            const targetPage = Math.min(Math.max(1, Number(jumpToPageInput)) - 1, totalPages - 1);
+                            setPage(targetPage);
+                            setJumpToPageInput('');
+                          }
+                        }}
+                        className="px-2 py-1 rounded border border-brand-accent/50 text-sm hover:bg-brand-accent/50 transition-colors"
+                      >
+                        Go
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ApiKeysPanel() {
+  const [apiKeys, setApiKeys] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [keyName, setKeyName] = useState('');
+  const [newlyCreatedKey, setNewlyCreatedKey] = useState<string | null>(null);
+  const [formError, setFormError] = useState('');
+  const [copied, setCopied] = useState(false);
+  const [editingKey, setEditingKey] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+
+  useEffect(() => {
+    fetchApiKeys();
+  }, []);
+
+  async function fetchApiKeys() {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/api-keys');
+      const data = await res.json();
+      if (data.success) {
+        setApiKeys(data.apiKeys);
+      }
+    } catch (error) {
+      console.error('Failed to fetch API keys:', error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleCreateKey(e: React.FormEvent) {
+    e.preventDefault();
+    setFormError('');
+    setNewlyCreatedKey(null);
+
+    try {
+      const res = await fetch('/api/api-keys', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: keyName }),
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        setNewlyCreatedKey(data.apiKey.key);
+        setKeyName('');
+        fetchApiKeys();
+      } else {
+        setFormError(data.message);
+      }
+    } catch {
+      setFormError('Failed to create API key');
+    }
+  }
+
+  async function copyToClipboard(text: string) {
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  async function toggleKeyStatus(id: string) {
+    try {
+      const res = await fetch('/api/api-keys', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, action: 'toggle' }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchApiKeys();
+      }
+    } catch (error) {
+      console.error('Failed to toggle key status:', error);
+    }
+  }
+
+  async function deleteKey(id: string) {
+    if (!confirm('Are you sure you want to delete this API key?')) return;
+
+    try {
+      const res = await fetch('/api/api-keys', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchApiKeys();
+      }
+    } catch (error) {
+      console.error('Failed to delete key:', error);
+    }
+  }
+
+  async function renameKey(id: string, newName: string) {
+    try {
+      const res = await fetch('/api/api-keys', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, action: 'update', updates: { name: newName } }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setEditingKey(null);
+        setEditName('');
+        fetchApiKeys();
+      }
+    } catch (error) {
+      console.error('Failed to rename key:', error);
+    }
+  }
+
+  function startEditing(key: any) {
+    setEditingKey(key.id);
+    setEditName(key.name);
+  }
+
+  function cancelEditing() {
+    setEditingKey(null);
+    setEditName('');
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold text-foreground">API Keys</h2>
+        <button
+          onClick={() => { setShowForm(!showForm); setNewlyCreatedKey(null); }}
+          className="bg-brand-primary text-white px-4 py-2 rounded-lg text-sm hover:bg-brand-accent transition-colors"
+        >
+          {showForm ? 'Cancel' : 'Generate New Key'}
+        </button>
+      </div>
+
+      {/* Newly Created Key Alert */}
+      {newlyCreatedKey && (
+        <div className="bg-green-900/30 border border-green-800 rounded-xl p-4">
+          <h4 className="font-semibold text-green-400 mb-2">
+            🔑 API Key Created Successfully!
+          </h4>
+          <p className="text-sm text-green-400/80 mb-3">
+            Copy this key now. You won&apos;t be able to see it again.
           </p>
-        </div>
-
-        <div>
-          <label htmlFor="to" className="block text-sm font-medium text-foreground mb-2">
-            Recipient Email
-          </label>
-          <input
-            type="email"
-            id="to"
-            value={formData.to}
-            onChange={(e) => setFormData({ ...formData, to: e.target.value })}
-            className="w-full px-4 py-3 rounded-lg border border-brand-accent/50 bg-brand-accent/60 text-foreground focus:ring-2 focus:ring-brand-primary focus:border-transparent transition-all placeholder-foreground/40"
-            placeholder="recipient@example.com"
-            required
-          />
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label htmlFor="from" className="block text-sm font-medium text-foreground mb-2">
-              From Email <span className="text-foreground/60">(optional)</span>
-            </label>
-            <input
-              type="email"
-              id="from"
-              value={formData.from}
-              onChange={(e) => setFormData({ ...formData, from: e.target.value })}
-              className="w-full px-4 py-3 rounded-lg border border-brand-accent/50 bg-brand-accent/60 text-foreground focus:ring-2 focus:ring-brand-primary focus:border-transparent transition-all placeholder-foreground/40"
-              placeholder="sender@example.com"
-            />
-          </div>
-          <div>
-            <label htmlFor="senderName" className="block text-sm font-medium text-foreground mb-2">
-              Sender Name <span className="text-foreground/60">(optional)</span>
-            </label>
-            <input
-              type="text"
-              id="senderName"
-              value={formData.senderName}
-              onChange={(e) => setFormData({ ...formData, senderName: e.target.value })}
-              className="w-full px-4 py-3 rounded-lg border border-brand-accent/50 bg-brand-accent/60 text-foreground focus:ring-2 focus:ring-brand-primary focus:border-transparent transition-all placeholder-foreground/40"
-              placeholder="My App"
-            />
+          <div className="flex items-center gap-2">
+            <code className="flex-1 bg-brand-accent/60 border border-brand-accent/70 px-3 py-2 rounded text-sm font-mono break-all text-foreground">
+              {newlyCreatedKey}
+            </code>
+            <button
+              onClick={() => copyToClipboard(newlyCreatedKey)}
+              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm transition-colors whitespace-nowrap"
+            >
+              {copied ? 'Copied!' : 'Copy'}
+            </button>
           </div>
         </div>
+      )}
 
-        <div>
-          <label htmlFor="subject" className="block text-sm font-medium text-foreground mb-2">
-            Subject
-          </label>
-          <input
-            type="text"
-            id="subject"
-            value={formData.subject}
-            onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-            className="w-full px-4 py-3 rounded-lg border border-brand-accent/50 bg-brand-accent/60 text-foreground focus:ring-2 focus:ring-brand-primary focus:border-transparent transition-all placeholder-foreground/40"
-            placeholder="Email subject"
-            required
-          />
+      {/* Create Form */}
+      {showForm && !newlyCreatedKey && (
+        <div className="bg-brand-accent/40 border border-brand-accent/50 rounded-xl shadow p-6">
+          <h3 className="text-lg font-semibold mb-4 text-foreground">Generate New API Key</h3>
+          <form onSubmit={handleCreateKey} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1">
+                Key Name
+              </label>
+              <input
+                type="text"
+                value={keyName}
+                onChange={(e) => setKeyName(e.target.value)}
+                className="w-full px-4 py-2 rounded-lg border border-brand-accent/50 bg-brand-accent/60 text-foreground focus:ring-2 focus:ring-brand-primary placeholder-foreground/40"
+                placeholder="e.g., Production, My App, Testing"
+                required
+              />
+              <p className="mt-1 text-xs text-foreground/60">
+                Give this key a descriptive name to identify it later
+              </p>
+            </div>
+            {formError && (
+              <div className="bg-red-900/30 text-red-400 px-4 py-2 rounded-lg text-sm border border-red-800">
+                {formError}
+              </div>
+            )}
+            <button
+              type="submit"
+              className="bg-brand-primary text-white px-6 py-2 rounded-lg hover:bg-brand-primary/80 transition-colors"
+            >
+              Generate Key
+            </button>
+          </form>
+        </div>
+      )}
+
+      {/* Keys List */}
+      <div className="bg-brand-accent/40 border border-brand-accent/50 rounded-xl shadow overflow-hidden">
+        {loading ? (
+          <div className="p-8 text-center text-foreground/60">Loading...</div>
+        ) : apiKeys.length === 0 ? (
+          <div className="p-8 text-center text-foreground/60">
+            <p>No API keys yet</p>
+            <p className="text-sm mt-1">Generate a key to authenticate API requests</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-brand-accent/30">
+            {apiKeys.map((key) => (
+              <div key={key.id} className="p-6 flex items-center justify-between hover:bg-brand-accent/50">
+                <div className="flex-1">
+                  {editingKey === key.id ? (
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="text"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        className="px-3 py-1.5 rounded-lg border border-brand-accent/50 bg-brand-accent/60 text-foreground focus:ring-2 focus:ring-brand-primary text-sm placeholder-foreground/40"
+                        placeholder="Key name"
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && editName.trim()) {
+                            renameKey(key.id, editName.trim());
+                          } else if (e.key === 'Escape') {
+                            cancelEditing();
+                          }
+                        }}
+                      />
+                      <button
+                        onClick={() => editName.trim() && renameKey(key.id, editName.trim())}
+                        className="px-2 py-1 text-sm text-green-400 hover:bg-green-900/30 rounded"
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={cancelEditing}
+                        className="px-2 py-1 text-sm text-foreground/60 hover:bg-brand-accent/50 rounded"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center space-x-3">
+                      <h4 className="font-semibold text-foreground">{key.name}</h4>
+                      <button
+                        onClick={() => startEditing(key)}
+                        className="text-foreground/60 hover:text-brand-primary transition-colors"
+                        title="Rename"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                        </svg>
+                      </button>
+                      <span
+                        className={`px-2 py-0.5 text-xs rounded-full border ${
+                          key.isActive
+                            ? 'bg-green-900/30 text-green-400 border-green-800'
+                            : 'bg-gray-800/30 text-foreground/80 border-gray-700'
+                        }`}
+                      >
+                        {key.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                    </div>
+                  )}
+                  <div className="mt-1 text-sm text-foreground/70 font-mono">
+                    {key.key}
+                  </div>
+                  <div className="mt-1 text-xs text-foreground/50">
+                    Created: {new Date(key.createdAt).toLocaleDateString()}
+                    {key.lastUsed && ` · Last used: ${new Date(key.lastUsed).toLocaleDateString()}`}
+                  </div>
+                </div>
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => toggleKeyStatus(key.id)}
+                    className="px-3 py-1 text-sm border border-brand-accent/50 rounded hover:bg-brand-accent/50 transition-colors"
+                  >
+                    {key.isActive ? 'Disable' : 'Enable'}
+                  </button>
+                  <button
+                    onClick={() => deleteKey(key.id)}
+                    className="px-3 py-1 text-sm text-red-400 border border-red-800 rounded hover:bg-red-900/30 transition-colors"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function StatusPanel() {
+  const [status, setStatus] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [timeInterval, setTimeInterval] = useState<'1h' | '24h' | '7d' | '30d' | '90d' | 'custom'>('24h');
+  const [customDays, setCustomDays] = useState(7);
+
+  useEffect(() => {
+    fetchStatus();
+    const interval = setInterval(fetchStatus, 30000); // Refresh every 30s
+    return () => clearInterval(interval);
+  }, [timeInterval, customDays]);
+
+  async function fetchStatus() {
+    try {
+      let hours = 24;
+      if (timeInterval === '1h') hours = 1;
+      else if (timeInterval === '24h') hours = 24;
+      else if (timeInterval === '7d') hours = 168;
+      else if (timeInterval === '30d') hours = 720;
+      else if (timeInterval === '90d') hours = 2160;
+      else if (timeInterval === 'custom') hours = customDays * 24;
+
+      const res = await fetch(`/api/status?hours=${hours}`);
+      const data = await res.json();
+      setStatus(data);
+    } catch (error) {
+      console.error('Failed to fetch status:', error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (loading) {
+    return <div className="text-center text-foreground/60">Loading...</div>;
+  }
+
+  return (
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold text-foreground">System Status</h2>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Health Status */}
+        <div className="bg-brand-accent rounded-xl shadow p-6 hover:border-brand-primary/60 transition-colors">
+          <h3 className="text-sm font-medium text-foreground/80 uppercase tracking-wider mb-2">
+            System Health
+          </h3>
+          <div className="flex items-center space-x-3">
+            <div
+              className={`w-4 h-4 rounded-full ${
+                status?.status === 'healthy' ? 'bg-emerald-400' : 'bg-red-400'
+              }`}
+            />
+            <span className="text-2xl font-bold text-foreground capitalize">
+              {status?.status || 'Unknown'}
+            </span>
+          </div>
         </div>
 
-        <div>
-          <label htmlFor="body" className="block text-sm font-medium text-foreground mb-2">
-            Message Body
-          </label>
-          <textarea
-            id="body"
-            value={formData.body}
-            onChange={(e) => setFormData({ ...formData, body: e.target.value })}
-            rows={4}
-            className="w-full px-4 py-3 rounded-lg border border-brand-accent/50 bg-brand-accent/60 text-foreground focus:ring-2 focus:ring-brand-primary focus:border-transparent transition-all resize-none placeholder-foreground/40"
-            placeholder="Your message..."
-            required
-          />
+        {/* Total Emails (All Time) */}
+        <div className="bg-brand-accent rounded-xl shadow p-6 hover:border-brand-primary/60 transition-colors">
+          <h3 className="text-sm font-medium text-foreground/80 uppercase tracking-wider mb-2">
+            Emails Sent
+          </h3>
+          <span className="text-2xl font-bold text-foreground">
+            {status?.totalEmailsSent || 0}
+          </span>
         </div>
 
-        {result && (
-          <div
-            className={`px-4 py-3 rounded-lg text-sm ${
-              result.success
-                ? 'bg-green-900/30 text-green-400 border border-green-800'
-                : 'bg-red-900/30 text-red-400 border border-red-800'
-            }`}
-          >
-            {result.message}
+        {/* Deliverability Rate */}
+        <div className="bg-brand-accent rounded-xl shadow p-6 hover:border-brand-primary/60 transition-colors">
+          <h3 className="text-sm font-medium text-foreground/80 uppercase tracking-wider mb-2">
+            Deliverability
+          </h3>
+          <span className="text-2xl font-bold text-brand-primary">
+            {status?.deliverability?.period?.successRate || 0}%
+          </span>
+        </div>
+      </div>
+
+      <div className="bg-brand-accent rounded-xl shadow p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+          <div>
+            <h3 className="text-lg font-semibold text-foreground">Deliverability Stats</h3>
+            <p className="text-xs text-foreground/60 mt-1">
+              {timeInterval === 'custom' ? `Last ${customDays} day${customDays !== 1 ? 's' : ''}` : `Last ${timeInterval === '1h' ? '1 hour' : timeInterval === '24h' ? '24 hours' : timeInterval === '7d' ? '7 days' : timeInterval === '30d' ? '30 days' : '90 days'}`}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {(['1h', '24h', '7d', '30d', '90d'] as const).map((interval) => (
+              <button
+                key={interval}
+                onClick={() => setTimeInterval(interval)}
+                className={`px-3 py-1 rounded border text-xs font-medium transition-colors ${
+                  timeInterval === interval
+                    ? 'bg-brand-primary text-white border-brand-primary'
+                    : 'border-brand-primary/50 text-foreground hover:bg-brand-primary/30'
+                }`}
+              >
+                {interval === '1h' && '1h'}
+                {interval === '24h' && '24h'}
+                {interval === '7d' && '7d'}
+                {interval === '30d' && '30d'}
+                {interval === '90d' && '90d'}
+              </button>
+            ))}
+            <button
+              onClick={() => setTimeInterval('custom')}
+              className={`px-3 py-1 rounded border text-xs font-medium transition-colors ${
+                timeInterval === 'custom'
+                  ? 'bg-brand-primary text-white border-brand-primary'
+                  : 'border-brand-primary/50 text-foreground hover:bg-brand-primary/30'
+              }`}
+            >
+              Custom
+            </button>
+          </div>
+        </div>
+
+        {/* Custom Days Input */}
+        {timeInterval === 'custom' && (
+          <div className="mb-4 flex items-center gap-3">
+            <label htmlFor="customDays" className="text-sm text-foreground/80">
+              Days:
+            </label>
+            <input
+              type="number"
+              id="customDays"
+              min="1"
+              max="365"
+              value={customDays}
+              onChange={(e) => setCustomDays(Math.max(1, Math.min(365, Number(e.target.value))))}
+              className="w-20 px-3 py-1 rounded border border-brand-primary/50 bg-background text-foreground focus:ring-2 focus:ring-brand-primary text-sm"
+            />
           </div>
         )}
 
+        {status?.deliverability?.timeSeries && status.deliverability.timeSeries.length > 0 ? (
+          <div className="grid grid-cols-3 gap-4">
+            <div className="bg-brand-accent  rounded-lg p-3">
+              <div className="text-xs text-foreground/70 uppercase tracking-wider mb-1">Total</div>
+              <div className="text-xl font-bold text-foreground">{status.deliverability.period.total}</div>
+            </div>
+            <div className="bg-emerald-600/25 rounded-lg p-3">
+              <div className="text-xs text-emerald-300 uppercase tracking-wider mb-1">Successful</div>
+              <div className="text-xl font-bold text-emerald-300">{status.deliverability.period.successful}</div>
+            </div>
+            <div className="bg-red-600/25 rounded-lg p-3">
+              <div className="text-xs text-red-300 uppercase tracking-wider mb-1">Failed</div>
+              <div className="text-xl font-bold text-red-300">{status.deliverability.period.failed}</div>
+            </div>
+          </div>
+        ) : (
+          <div className="text-center text-foreground/60 py-8">
+            No deliverability data available yet.
+          </div>
+        )}
+      </div>
+
+      {/* Rate Limit Status */}
+      <div className="bg-brand-accent rounded-xl shadow p-6">
+        <h3 className="text-lg font-semibold text-foreground mb-4">Provider Rate Limits</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* NotificationAPI */}
+          <div className=" rounded-lg p-4 bg-brand-accent">
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="font-medium text-foreground">NotificationAPI</h4>
+              <span
+                className={`px-2 py-1 text-xs rounded-full border font-semibold ${
+                  status?.rateLimits?.notificationapi?.isLimited
+                    ? 'bg-red-600/30 text-red-200 border-red-500/80'
+                    : 'bg-emerald-600/30 text-emerald-200 border-emerald-500/80'
+                }`}
+              >
+                {status?.rateLimits?.notificationapi?.isLimited ? 'Rate Limited' : 'Available'}
+              </span>
+            </div>
+            {status?.rateLimits?.notificationapi?.isLimited && (
+              <p className="text-sm text-foreground/80">
+                Backoff until:{' '}
+                {new Date(status.rateLimits.notificationapi.backoffUntil).toLocaleString()}
+              </p>
+            )}
+          </div>
+
+          {/* Brevo */}
+          <div className=" rounded-lg p-4 bg-brand-accent">
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="font-medium text-foreground">Brevo</h4>
+              <span
+                className={`px-2 py-1 text-xs rounded-full border font-semibold ${
+                  status?.rateLimits?.brevo?.isLimited
+                    ? 'bg-red-600/30 text-red-200 border-red-500/80'
+                    : 'bg-emerald-600/30 text-emerald-200 border-emerald-500/80'
+                }`}
+              >
+                {status?.rateLimits?.brevo?.isLimited ? 'Rate Limited' : 'Available'}
+              </span>
+            </div>
+            {status?.rateLimits?.brevo?.isLimited && (
+              <p className="text-sm text-foreground/80">
+                Backoff until:{' '}
+                {new Date(status.rateLimits.brevo.backoffUntil).toLocaleString()}
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="text-center">
         <button
-          type="submit"
-          disabled={loading}
-          className="w-full bg-brand-primary hover:bg-brand-primary/80 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          onClick={fetchStatus}
+          className="bg-brand-primary text-white px-6 py-2 rounded-lg hover:bg-brand-primary/80 transition-colors"
         >
-          {loading ? 'Sending...' : 'Send Test Email'}
+          Refresh Status
         </button>
-      </form>
+      </div>
+    </div>
+  );
+}
+
+function DocsPanel() {
+  const [testEmail, setTestEmail] = useState('');
+  const [testSenderName, setTestSenderName] = useState('Test Sender');
+  const [testSenderEmail, setTestSenderEmail] = useState('');
+  const [testSubject, setTestSubject] = useState('Test Email');
+  const [testBody, setTestBody] = useState('This is a test email from Falak Mail Relay.');
+  const [testLoading, setTestLoading] = useState(false);
+  const [testMessage, setTestMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [apiKey, setApiKey] = useState('');
+  const [showApiKeyInput, setShowApiKeyInput] = useState(false);
+
+  async function sendTestEmail(e: React.FormEvent) {
+    e.preventDefault();
+    if (!testEmail || !testSenderEmail || !apiKey) {
+      setTestMessage({ type: 'error', text: 'Please fill in all fields' });
+      return;
+    }
+
+    setTestLoading(true);
+    setTestMessage(null);
+
+    try {
+      const res = await fetch('/api/send-mail', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          to: testEmail,
+          subject: testSubject,
+          body: testBody,
+          html: `<p>${testBody.replace(/\n/g, '<br>')}</p>`,
+          senderName: testSenderName,
+          senderEmail: testSenderEmail,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        setTestMessage({ type: 'success', text: 'Test email sent successfully!' });
+        setTestEmail('');
+        setTestSubject('Test Email');
+        setTestBody('This is a test email from Falak Mail Relay.');
+      } else {
+        setTestMessage({ type: 'error', text: data.message || 'Failed to send test email' });
+      }
+    } catch (error) {
+      setTestMessage({ type: 'error', text: 'Network error. Please try again.' });
+    } finally {
+      setTestLoading(false);
+    }
+  }
+
+  return (
+    <div className="space-y-8">
+      {/* API Documentation */}
+      <section>
+        <h2 className="text-2xl font-bold text-foreground mb-4">API Documentation</h2>
+        <div className="bg-brand-accent/40 border border-brand-accent/50 rounded-xl shadow p-6 space-y-6">
+          {/* Endpoint Overview */}
+          <div>
+            <h3 className="text-lg font-semibold text-foreground mb-3">Send Email Endpoint</h3>
+            <div className="bg-brand-accent/60 rounded-lg p-4 font-mono text-sm text-foreground mb-4 overflow-x-auto">
+              <div className="text-brand-primary font-bold">POST</div>
+              <div className="text-foreground/80">{typeof window !== 'undefined' ? window.location.origin : ''}/api/send-mail</div>
+            </div>
+
+            <h4 className="font-semibold text-foreground mb-2">Authentication</h4>
+            <p className="text-foreground/80 text-sm mb-3">
+              Include your API key in the Authorization header using the Bearer scheme:
+            </p>
+            <div className="bg-brand-accent/60 rounded-lg p-4 font-mono text-sm text-foreground overflow-x-auto">
+              Authorization: Bearer &lt;your-api-key&gt;
+            </div>
+          </div>
+
+          {/* Request Body */}
+          <div>
+            <h4 className="font-semibold text-foreground mb-2">Request Body</h4>
+            <p className="text-foreground/80 text-sm mb-3">JSON payload with the following fields:</p>
+            <div className="bg-brand-accent/60 rounded-lg p-4 font-mono text-xs text-foreground overflow-x-auto">
+              <pre>{`{
+  "to": "recipient@example.com",
+  "subject": "Email Subject",
+  "html": "<p>Email body in HTML</p>",
+  "senderName": "Your App",
+  "senderEmail": "noreply@example.com"
+}`}</pre>
+            </div>
+
+            <div className="mt-4 space-y-3">
+              <div>
+                <span className="font-mono text-sm text-brand-primary">to</span>
+                <span className="text-sm text-foreground/80"> (required): Recipient email address</span>
+              </div>
+              <div>
+                <span className="font-mono text-sm text-brand-primary">subject</span>
+                <span className="text-sm text-foreground/80"> (required): Email subject line</span>
+              </div>
+              <div>
+                <span className="font-mono text-sm text-brand-primary">html</span>
+                <span className="text-sm text-foreground/80"> (required): Email body in HTML format</span>
+              </div>
+              <div>
+                <span className="font-mono text-sm text-brand-primary">senderName</span>
+                <span className="text-sm text-foreground/80"> (optional): Display name of sender</span>
+              </div>
+              <div>
+                <span className="font-mono text-sm text-brand-primary">senderEmail</span>
+                <span className="text-sm text-foreground/80"> (optional): Email address to send from</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Example cURL */}
+          <div>
+            <h4 className="font-semibold text-foreground mb-2">Example Request (cURL)</h4>
+            <div className="bg-brand-accent/60 rounded-lg p-4 font-mono text-xs text-foreground overflow-x-auto">
+              <pre>{`curl -X POST https://your-domain.com/api/send-mail \\
+  -H "Content-Type: application/json" \\
+  -H "Authorization: Bearer YOUR_API_KEY" \\
+  -d '{
+    "to": "user@example.com",
+    "subject": "Hello!",
+    "html": "<p>This is a test email</p>",
+    "senderName": "My App",
+    "senderEmail": "noreply@myapp.com"
+  }'`}</pre>
+            </div>
+          </div>
+
+          {/* Response */}
+          <div>
+            <h4 className="font-semibold text-foreground mb-2">Response</h4>
+            <p className="text-foreground/80 text-sm mb-3">On success:</p>
+            <div className="bg-brand-accent/60 rounded-lg p-4 font-mono text-xs text-foreground overflow-x-auto mb-3">
+              <pre>{`{
+  "success": true,
+  "message": "Email sent successfully"
+}`}</pre>
+            </div>
+            <p className="text-foreground/80 text-sm mb-3">On error:</p>
+            <div className="bg-brand-accent/60 rounded-lg p-4 font-mono text-xs text-foreground overflow-x-auto">
+              <pre>{`{
+  "success": false,
+  "message": "Error description"
+}`}</pre>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Test Email Form */}
+      <section>
+        <h2 className="text-2xl font-bold text-foreground mb-4">Test Email</h2>
+        <div className="bg-brand-accent/40 border border-brand-accent/50 rounded-xl shadow p-6">
+          <p className="text-foreground/80 text-sm mb-4">
+            Send a test email to verify your setup is working correctly.
+          </p>
+
+          <form onSubmit={sendTestEmail} className="space-y-4">
+            {/* API Key Input */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label htmlFor="apiKey" className="block text-sm font-medium text-foreground">
+                  API Key
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowApiKeyInput(!showApiKeyInput)}
+                  className="text-xs text-foreground/60 hover:text-brand-primary"
+                >
+                  {showApiKeyInput ? 'Hide' : 'Show'}
+                </button>
+              </div>
+              <input
+                type={showApiKeyInput ? 'text' : 'password'}
+                id="apiKey"
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                className="w-full px-4 py-2 rounded-lg border border-brand-accent/50 bg-brand-accent/60 text-foreground focus:ring-2 focus:ring-brand-primary placeholder-foreground/40 text-sm"
+                placeholder="Enter your API key"
+                required
+              />
+            </div>
+
+            {/* Sender Name */}
+            <div>
+              <label htmlFor="senderName" className="block text-sm font-medium text-foreground mb-2">
+                Sender Name
+              </label>
+              <input
+                type="text"
+                id="senderName"
+                value={testSenderName}
+                onChange={(e) => setTestSenderName(e.target.value)}
+                className="w-full px-4 py-2 rounded-lg border border-brand-accent/50 bg-brand-accent/60 text-foreground focus:ring-2 focus:ring-brand-primary placeholder-foreground/40 text-sm"
+                placeholder="Your App Name"
+                required
+              />
+            </div>
+
+            {/* Sender Email */}
+            <div>
+              <label htmlFor="senderEmail" className="block text-sm font-medium text-foreground mb-2">
+                Sender Email
+              </label>
+              <input
+                type="email"
+                id="senderEmail"
+                value={testSenderEmail}
+                onChange={(e) => setTestSenderEmail(e.target.value)}
+                className="w-full px-4 py-2 rounded-lg border border-brand-accent/50 bg-brand-accent/60 text-foreground focus:ring-2 focus:ring-brand-primary placeholder-foreground/40 text-sm"
+                placeholder="noreply@example.com"
+                required
+              />
+            </div>
+
+            {/* Recipient Email */}
+            <div>
+              <label htmlFor="testEmail" className="block text-sm font-medium text-foreground mb-2">
+                Recipient Email
+              </label>
+              <input
+                type="email"
+                id="testEmail"
+                value={testEmail}
+                onChange={(e) => setTestEmail(e.target.value)}
+                className="w-full px-4 py-2 rounded-lg border border-brand-accent/50 bg-brand-accent/60 text-foreground focus:ring-2 focus:ring-brand-primary placeholder-foreground/40 text-sm"
+                placeholder="recipient@example.com"
+                required
+              />
+            </div>
+
+            {/* Subject */}
+            <div>
+              <label htmlFor="testSubject" className="block text-sm font-medium text-foreground mb-2">
+                Subject
+              </label>
+              <input
+                type="text"
+                id="testSubject"
+                value={testSubject}
+                onChange={(e) => setTestSubject(e.target.value)}
+                className="w-full px-4 py-2 rounded-lg border border-brand-accent/50 bg-brand-accent/60 text-foreground focus:ring-2 focus:ring-brand-primary placeholder-foreground/40 text-sm"
+                placeholder="Email subject"
+                required
+              />
+            </div>
+
+            {/* Body */}
+            <div>
+              <label htmlFor="testBody" className="block text-sm font-medium text-foreground mb-2">
+                Body (Plain Text)
+              </label>
+              <textarea
+                id="testBody"
+                value={testBody}
+                onChange={(e) => setTestBody(e.target.value)}
+                className="w-full px-4 py-2 rounded-lg border border-brand-accent/50 bg-brand-accent/60 text-foreground focus:ring-2 focus:ring-brand-primary placeholder-foreground/40 text-sm h-32 resize-none"
+                placeholder="Email body text"
+                required
+              />
+            </div>
+
+            {/* Messages */}
+            {testMessage && (
+              <div
+                className={`px-4 py-3 rounded-lg text-sm border ${
+                  testMessage.type === 'success'
+                    ? 'bg-green-900/30 text-green-400 border-green-800'
+                    : 'bg-red-900/30 text-red-400 border-red-800'
+                }`}
+              >
+                {testMessage.text}
+              </div>
+            )}
+
+            {/* Send Button */}
+            <button
+              type="submit"
+              disabled={testLoading}
+              className="w-full bg-brand-primary hover:bg-brand-primary/80 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {testLoading ? 'Sending...' : 'Send Test Email'}
+            </button>
+          </form>
+        </div>
+      </section>
     </div>
   );
 }

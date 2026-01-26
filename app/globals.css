@@ -4,9 +4,9 @@
 
 :root {
   --background: #0a0a0a;
-  --foreground: #ededed;
+  --foreground: #ffffff;
   --brand-primary: #0000C0;
-  --brand-accent: #000040;
+  --brand-accent: #1a1a1a;
 }
 
 @theme inline {
@@ -26,13 +26,28 @@ body {
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
+
 ::-webkit-scrollbar-track {
-  background: var(--brand-accent);
+  background: transparent;
+  margin: 4px 0;
 }
+
 ::-webkit-scrollbar-thumb {
-  background: var(--brand-primary);
-  border-radius: 4px;
+  background: linear-gradient(180deg, var(--brand-primary), var(--brand-primary) 70%);
+  border-radius: 10px;
+  border: 2px solid var(--brand-accent);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, var(--brand-primary), var(--brand-primary) 80%);
+  border-color: var(--brand-primary);
+}
+
+/* Firefox scrollbar */
+* {
+  scrollbar-color: var(--brand-primary) transparent;
+  scrollbar-width: thin;
 }
