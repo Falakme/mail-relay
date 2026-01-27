@@ -1,7 +1,20 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+
+function getAuthHeaders(): Record<string, string> {
+  if (typeof window === 'undefined') {
+    return { 'Content-Type': 'application/json' };
+  }
+  
+  const token = localStorage.getItem('adminToken');
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  return headers;
+}
 
 export default function AdminPage() {
   const router = useRouter();
@@ -9,21 +22,32 @@ export default function AdminPage() {
   const [siteKey, setSiteKey] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isClient, setIsClient] = useState(false);
 
+  // First effect: Initialize client-side only
   useEffect(() => {
-    checkAuth();
+    setIsClient(true);
   }, []);
+
+  // Second effect: Check auth after client is ready
+  useEffect(() => {
+    if (isClient) {
+      checkAuth();
+    }
+  }, [isClient]);
 
   async function checkAuth() {
     try {
       const res = await fetch('/api/auth', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ action: 'check' }),
+        credentials: 'include',
       });
       const data = await res.json();
       setIsAuthenticated(data.authenticated);
-    } catch {
+    } catch (err) {
+      console.error('Auth check failed:', err);
       setIsAuthenticated(false);
     }
   }
@@ -38,16 +62,23 @@ export default function AdminPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'login', siteKey }),
+        credentials: 'include',
       });
       const data = await res.json();
 
       if (data.success) {
-        setIsAuthenticated(true);
+        // Store token in localStorage for cross-origin access
+        if (data.token && typeof window !== 'undefined') {
+          localStorage.setItem('adminToken', data.token);
+        }
+        // Verify the session cookie was set by checking auth status
+        await checkAuth();
       } else {
         setError(data.message || 'Login failed');
       }
-    } catch {
+    } catch (err) {
       setError('Network error. Please try again.');
+      console.error('Login error:', err);
     } finally {
       setLoading(false);
     }
@@ -57,12 +88,18 @@ export default function AdminPage() {
     try {
       await fetch('/api/auth', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ action: 'logout' }),
+        credentials: 'include',
       });
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('adminToken');
+      }
+      // Verify logout was successful
       setIsAuthenticated(false);
-    } catch {
-      console.error('Logout failed');
+    } catch (err) {
+      console.error('Logout failed:', err);
+      setIsAuthenticated(false);
     }
   }
 
@@ -220,7 +257,10 @@ function EmailLogsPanel() {
   async function fetchLogs() {
     setLoading(true);
     try {
-      const res = await fetch(`/api/logs?limit=${limit}&offset=${page * limit}`);
+      const res = await fetch(`/api/logs?limit=${limit}&offset=${page * limit}`, {
+        headers: getAuthHeaders(),
+        credentials: 'include',
+      });
       const data = await res.json();
       if (data.success) {
         setLogs(data.logs);
@@ -239,8 +279,9 @@ function EmailLogsPanel() {
     try {
       const res = await fetch('/api/logs', {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ id }),
+        credentials: 'include',
       });
       const data = await res.json();
       if (data.success) {
@@ -569,7 +610,10 @@ function ApiKeysPanel() {
   async function fetchApiKeys() {
     setLoading(true);
     try {
-      const res = await fetch('/api/api-keys');
+      const res = await fetch('/api/api-keys', {
+        headers: getAuthHeaders(),
+        credentials: 'include',
+      });
       const data = await res.json();
       if (data.success) {
         setApiKeys(data.apiKeys);
@@ -589,8 +633,9 @@ function ApiKeysPanel() {
     try {
       const res = await fetch('/api/api-keys', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ name: keyName }),
+        credentials: 'include',
       });
       const data = await res.json();
 
@@ -616,8 +661,9 @@ function ApiKeysPanel() {
     try {
       const res = await fetch('/api/api-keys', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ id, action: 'toggle' }),
+        credentials: 'include',
       });
       const data = await res.json();
       if (data.success) {
@@ -634,8 +680,9 @@ function ApiKeysPanel() {
     try {
       const res = await fetch('/api/api-keys', {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ id }),
+        credentials: 'include',
       });
       const data = await res.json();
       if (data.success) {
@@ -650,8 +697,9 @@ function ApiKeysPanel() {
     try {
       const res = await fetch('/api/api-keys', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ id, action: 'update', updates: { name: newName } }),
+        credentials: 'include',
       });
       const data = await res.json();
       if (data.success) {
@@ -865,7 +913,10 @@ function StatusPanel() {
       else if (timeInterval === '90d') hours = 2160;
       else if (timeInterval === 'custom') hours = customDays * 24;
 
-      const res = await fetch(`/api/status?hours=${hours}`);
+      const res = await fetch(`/api/status?hours=${hours}`, {
+        headers: getAuthHeaders(),
+        credentials: 'include',
+      });
       const data = await res.json();
       setStatus(data);
     } catch (error) {

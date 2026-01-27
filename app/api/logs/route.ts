@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { isAuthenticated } from '@/lib/auth';
+import { isAuthenticated, isAuthenticatedFromRequest } from '@/lib/auth';
 import { getEmailLogs, getEmailLogCount, deleteEmailLog } from '@/lib/database';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
-    const authenticated = await isAuthenticated();
+    const authenticatedViaCookie = await isAuthenticated();
+    const authenticatedViaHeader = isAuthenticatedFromRequest(request);
+    const authenticated = authenticatedViaCookie || authenticatedViaHeader;
+    
     if (!authenticated) {
       return NextResponse.json(
         { success: false, message: 'Unauthorized' },
@@ -39,7 +42,10 @@ export async function GET(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const authenticated = await isAuthenticated();
+    const authenticatedViaCookie = await isAuthenticated();
+    const authenticatedViaHeader = isAuthenticatedFromRequest(request);
+    const authenticated = authenticatedViaCookie || authenticatedViaHeader;
+    
     if (!authenticated) {
       return NextResponse.json(
         { success: false, message: 'Unauthorized' },

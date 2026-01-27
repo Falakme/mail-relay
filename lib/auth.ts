@@ -1,4 +1,5 @@
 import { cookies } from 'next/headers';
+import { NextRequest } from 'next/server';
 import { AdminSession } from './types';
 
 const SESSION_COOKIE_NAME = 'falak_admin_session';
@@ -29,9 +30,10 @@ export async function setSessionCookie(token: string): Promise<void> {
   cookieStore.set(SESSION_COOKIE_NAME, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    sameSite: 'lax',
     maxAge: SESSION_DURATION / 1000,
     path: '/',
+    domain: undefined, // Allow browser to set domain based on current origin
   });
 }
 
@@ -63,7 +65,35 @@ export async function getSession(): Promise<AdminSession | null> {
   }
 }
 
+export function getSessionFromRequest(request: NextRequest): AdminSession | null {
+  // Try to get session from Authorization header first (for cross-origin requests)
+  const authHeader = request.headers.get('authorization');
+  if (authHeader?.startsWith('Bearer ')) {
+    const token = authHeader.slice(7);
+    try {
+      const session = JSON.parse(
+        Buffer.from(token, 'base64').toString()
+      ) as AdminSession;
+      
+      if (session.expiresAt && session.expiresAt < Date.now()) {
+        return null;
+      }
+      
+      return session;
+    } catch {
+      return null;
+    }
+  }
+  
+  return null;
+}
+
 export async function isAuthenticated(): Promise<boolean> {
   const session = await getSession();
+  return session?.authenticated === true;
+}
+
+export function isAuthenticatedFromRequest(request: NextRequest): boolean {
+  const session = getSessionFromRequest(request);
   return session?.authenticated === true;
 }

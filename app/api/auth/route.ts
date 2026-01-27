@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { validateSiteKey, createSession, setSessionCookie, clearSessionCookie, isAuthenticated } from '@/lib/auth';
+import { validateSiteKey, createSession, setSessionCookie, clearSessionCookie, isAuthenticated, isAuthenticatedFromRequest } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
       const token = await createSession();
       await setSessionCookie(token);
 
-      return NextResponse.json({ success: true, message: 'Logged in successfully' });
+      return NextResponse.json({ success: true, message: 'Logged in successfully', token });
     }
 
     if (action === 'logout') {
@@ -36,7 +36,10 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === 'check') {
-      const authenticated = await isAuthenticated();
+      // Check both cookie and Authorization header for authentication
+      const authenticatedViaCookie = await isAuthenticated();
+      const authenticatedViaHeader = isAuthenticatedFromRequest(request);
+      const authenticated = authenticatedViaCookie || authenticatedViaHeader;
       return NextResponse.json({ authenticated });
     }
 
@@ -52,3 +55,4 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+

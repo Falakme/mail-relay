@@ -1,4 +1,5 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { isAuthenticated, isAuthenticatedFromRequest } from '@/lib/auth';
 import { getRateLimitStatus } from '@/lib/email-service';
 import { getEmailLogCount } from '@/lib/database';
 import Database from 'better-sqlite3';
@@ -6,8 +7,19 @@ import path from 'path';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
+    const authenticatedViaCookie = await isAuthenticated();
+    const authenticatedViaHeader = isAuthenticatedFromRequest(request);
+    const authenticated = authenticatedViaCookie || authenticatedViaHeader;
+    
+    if (!authenticated) {
+      return NextResponse.json(
+        { success: false, message: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const hours = parseInt(searchParams.get('hours') || '24', 10);
 

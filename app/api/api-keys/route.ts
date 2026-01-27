@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
 import { randomBytes } from 'crypto';
-import { isAuthenticated } from '@/lib/auth';
+import { isAuthenticated, isAuthenticatedFromRequest } from '@/lib/auth';
 import { 
   getApiKeys, 
   createApiKey, 
@@ -18,9 +18,12 @@ function generateApiKey(): string {
   return 'fmr_' + randomBytes(24).toString('hex');
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const authenticated = await isAuthenticated();
+    const authenticatedViaCookie = await isAuthenticated();
+    const authenticatedViaHeader = isAuthenticatedFromRequest(request);
+    const authenticated = authenticatedViaCookie || authenticatedViaHeader;
+    
     if (!authenticated) {
       return NextResponse.json(
         { success: false, message: 'Unauthorized' },
@@ -47,7 +50,9 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const authenticated = await isAuthenticated();
+    const authenticatedViaCookie = await isAuthenticated();
+    const authenticatedViaHeader = isAuthenticatedFromRequest(request);
+    const authenticated = authenticatedViaCookie || authenticatedViaHeader;
     if (!authenticated) {
       return NextResponse.json(
         { success: false, message: 'Unauthorized' },
