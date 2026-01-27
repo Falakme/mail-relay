@@ -1,15 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sendEmail } from '@/lib/email-service';
 import { EmailRequest } from '@/lib/types';
-import { ConvexHttpClient } from 'convex/browser';
+import { getConvexClient } from '@/lib/convex-client';
 import { api } from '@/convex/_generated/api';
 
 export const dynamic = 'force-dynamic';
 
-const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL || '');
-
 // Validate API key from Authorization header
-async function validateApiKey(request: NextRequest): Promise<{ valid: boolean; keyId?: string; key?: string }> {
+async function validateApiKey(request: NextRequest, convex: any): Promise<{ valid: boolean; keyId?: string; key?: string }> {
   const authHeader = request.headers.get('Authorization');
   
   if (!authHeader) {
@@ -36,8 +34,9 @@ async function validateApiKey(request: NextRequest): Promise<{ valid: boolean; k
 
 export async function POST(request: NextRequest) {
   try {
+    const convex = getConvexClient();
     // Validate API key
-    const { valid, key } = await validateApiKey(request);
+    const { valid, key } = await validateApiKey(request, convex);
     if (!valid) {
       return NextResponse.json(
         { success: false, message: 'Invalid or missing API key. Include Authorization header.' },

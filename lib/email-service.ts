@@ -2,15 +2,13 @@ import notificationapi from 'notificationapi-node-server-sdk';
 import * as Brevo from '@getbrevo/brevo';
 import { v4 as uuidv4 } from 'uuid';
 import { EmailRequest, EmailLog, SendEmailResponse } from './types';
-import { ConvexHttpClient } from 'convex/browser';
+import { getConvexClient } from './convex-client';
 import { api } from '@/convex/_generated/api';
-
-// Initialize Convex client for logging emails
-const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL || '');
 
 // Log email to Convex database
 async function logEmail(emailLog: EmailLog, emailRequest?: EmailRequest): Promise<void> {
   try {
+    const convex = getConvexClient();
     await convex.mutation(api.emailLogs.createEmailLog, {
       messageId: emailLog.id,
       to: emailLog.recipient,

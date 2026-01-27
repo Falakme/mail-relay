@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { randomBytes } from 'crypto';
 import { isAuthenticated, isAuthenticatedFromRequest } from '@/lib/auth';
-import { ConvexHttpClient } from 'convex/browser';
+import { getConvexClient } from '@/lib/convex-client';
 import { api } from '@/convex/_generated/api';
 
 export const dynamic = 'force-dynamic';
-
-const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL || '');
 
 // Generate a secure random API key
 function generateApiKey(): string {
@@ -15,6 +13,7 @@ function generateApiKey(): string {
 
 export async function GET(request: NextRequest) {
   try {
+    const convex = getConvexClient();
     const authenticatedViaCookie = await isAuthenticated();
     const authenticatedViaHeader = isAuthenticatedFromRequest(request);
     const authenticated = authenticatedViaCookie || authenticatedViaHeader;
@@ -56,6 +55,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const convex = getConvexClient();
     const authenticatedViaCookie = await isAuthenticated();
     const authenticatedViaHeader = isAuthenticatedFromRequest(request);
     const authenticated = authenticatedViaCookie || authenticatedViaHeader;
@@ -116,6 +116,7 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    const convex = getConvexClient();
     const authenticatedViaCookie = await isAuthenticated();
     const authenticatedViaHeader = isAuthenticatedFromRequest(request);
     const authenticated = authenticatedViaCookie || authenticatedViaHeader;
@@ -170,6 +171,7 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    const convex = getConvexClient();
     const authenticatedViaCookie = await isAuthenticated();
     const authenticatedViaHeader = isAuthenticatedFromRequest(request);
     const authenticated = authenticatedViaCookie || authenticatedViaHeader;

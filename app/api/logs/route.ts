@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAuthenticated, isAuthenticatedFromRequest } from '@/lib/auth';
-import { ConvexHttpClient } from 'convex/browser';
+import { getConvexClient } from '@/lib/convex-client';
 import { api } from '@/convex/_generated/api';
 
 export const dynamic = 'force-dynamic';
 
-const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL || '');
-
 export async function GET(request: NextRequest) {
   try {
+    const convex = getConvexClient();
     const authenticatedViaCookie = await isAuthenticated();
     const authenticatedViaHeader = isAuthenticatedFromRequest(request);
     const authenticated = authenticatedViaCookie || authenticatedViaHeader;
@@ -59,6 +58,7 @@ export async function GET(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    const convex = getConvexClient();
     const authenticatedViaCookie = await isAuthenticated();
     const authenticatedViaHeader = isAuthenticatedFromRequest(request);
     const authenticated = authenticatedViaCookie || authenticatedViaHeader;
