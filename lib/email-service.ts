@@ -169,34 +169,8 @@ export async function sendEmail(email: EmailRequest, apiKeyId?: string): Promise
   const timestamp = new Date().toISOString();
   const sender = email.from || process.env.DEFAULT_FROM_EMAIL || 'noreply@alerts.falak.me';
 
-  // Try NotificationAPI first
-  console.log('[Mail Relay] Attempting to send via NotificationAPI...');
-  const notificationResult = await sendViaNotificationApi(email);
-
-  if (notificationResult.success) {
-    const emailLog: EmailLog = {
-      id: logId,
-      timestamp,
-      recipient: email.to,
-      subject: email.subject,
-      sender,
-      status: 'success',
-      provider: 'notificationapi',
-      apiKeyId,
-    };
-    logEmail(emailLog, email);
-    console.log('[Mail Relay] Email sent successfully via NotificationAPI');
-    
-    return {
-      success: true,
-      message: 'Email sent successfully via NotificationAPI',
-      provider: 'notificationapi',
-      logId,
-    };
-  }
-
-  // Fallback to Brevo
-  console.log('[Mail Relay] NotificationAPI failed, falling back to Brevo...');
+  // Try Brevo first
+  console.log('[Mail Relay] Attempting to send via Brevo...');
   const brevoResult = await sendViaBrevo(email);
 
   if (brevoResult.success) {
@@ -206,17 +180,43 @@ export async function sendEmail(email: EmailRequest, apiKeyId?: string): Promise
       recipient: email.to,
       subject: email.subject,
       sender,
-      status: 'fallback',
+      status: 'success',
       provider: 'brevo',
       apiKeyId,
     };
     logEmail(emailLog, email);
-    console.log('[Mail Relay] Email sent successfully via Brevo (fallback)');
+    console.log('[Mail Relay] Email sent successfully via Brevo');
     
     return {
       success: true,
-      message: 'Email sent successfully via Brevo (fallback)',
+      message: 'Email sent successfully via Brevo',
       provider: 'brevo',
+      logId,
+    };
+  }
+
+  // Fallback to NotificationAPI
+  console.log('[Mail Relay] Brevo failed, falling back to NotificationAPI...');
+  const notificationResult = await sendViaNotificationApi(email);
+
+  if (notificationResult.success) {
+    const emailLog: EmailLog = {
+      id: logId,
+      timestamp,
+      recipient: email.to,
+      subject: email.subject,
+      sender,
+      status: 'fallback',
+      provider: 'notificationapi',
+      apiKeyId,
+    };
+    logEmail(emailLog, email);
+    console.log('[Mail Relay] Email sent successfully via NotificationAPI (fallback)');
+    
+    return {
+      success: true,
+      message: 'Email sent successfully via NotificationAPI (fallback)',
+      provider: 'notificationapi',
       logId,
     };
   }
@@ -229,9 +229,9 @@ export async function sendEmail(email: EmailRequest, apiKeyId?: string): Promise
     subject: email.subject,
     sender,
     status: 'failed',
-    provider: 'notificationapi',
+    provider: 'brevo',
     apiKeyId,
-    errorMessage: `NotificationAPI: ${notificationResult.error}; Brevo: ${brevoResult.error}`,
+    errorMessage: `Brevo: ${brevoResult.error}; NotificationAPI: ${notificationResult.error}`,
   };
   logEmail(emailLog, email);
   console.error('[Mail Relay] Both providers failed:', emailLog.errorMessage);

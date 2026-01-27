@@ -1284,7 +1284,7 @@ function DocsPanel() {
               <li>• <strong>Sender Name:</strong> Display name for the sender (e.g., "My Service")</li>
               <li>• <strong>Sender Email:</strong> The "from" address (must be verified with your email provider)</li>
               <li>• <strong>Subject & Body:</strong> Email content to send</li>
-              <li>• Emails route through <strong>NotificationAPI</strong> first, then fallback to <strong>Brevo</strong></li>
+              <li>• Emails route through <strong>Brevo</strong> first, then fallback to <strong>NotificationAPI</strong></li>
               <li>• Check your spam folder if the email doesn't arrive</li>
             </ul>
           </div>
