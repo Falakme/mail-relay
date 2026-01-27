@@ -1,5 +1,11 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { createHash } from "crypto";
+
+// Hash an API key using SHA-256
+function hashApiKey(key: string): string {
+  return createHash('sha256').update(key).digest('hex');
+}
 
 export const getApiKeys = query({
   async handler(ctx) {
@@ -13,8 +19,9 @@ export const getApiKeyByKey = query({
     key: v.string(),
   },
   async handler(ctx, args) {
+    const keyHash = hashApiKey(args.key);
     const keys = await ctx.db.query("apiKeys").collect();
-    return keys.find((k) => k.key === args.key) || null;
+    return keys.find((k) => k.key === keyHash) || null;
   },
 });
 
@@ -24,9 +31,10 @@ export const createApiKey = mutation({
     key: v.string(),
   },
   async handler(ctx, args) {
+    const keyHash = hashApiKey(args.key);
     const id = await ctx.db.insert("apiKeys", {
       name: args.name,
-      key: args.key,
+      key: keyHash,
       isActive: true,
       createdAt: new Date().toISOString(),
       usageCount: 0,
