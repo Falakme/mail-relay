@@ -52,9 +52,20 @@ jobs:
 
       - name: Build with Next.js
         run: bun run build
+        env:
+          NEXT_PUBLIC_CONVEX_URL: ${{ secrets.NEXT_PUBLIC_CONVEX_URL }}
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: next-build
-          path: .next
+      # Note: This workflow builds the application, but deployment should be done via Vercel
+      # GitHub Pages does not support Next.js server-side routes (like /api/*)
+      # 
+      # To deploy:
+      # 1. Connect your repository to Vercel at https://vercel.com
+      # 2. Set environment variables in Vercel Dashboard:
+      #    - SITE_KEY: secure random string
+      #    - NOTIFICATIONAPI_CLIENT_ID: your NotificationAPI client ID
+      #    - NOTIFICATIONAPI_CLIENT_SECRET: your NotificationAPI secret
+      #    - BREVO_API_KEY: your Brevo API key
+      #    - CONVEX_DEPLOYMENT: your Convex deployment ID (e.g., prod:cool-dragon-482)
+      #    - NEXT_PUBLIC_CONVEX_URL: your Convex deployment URL (https://...)
+      #    - DEFAULT_FROM_EMAIL: (optional) default sender email
+      # 3. Push to main branch - Vercel will automatically deploy
