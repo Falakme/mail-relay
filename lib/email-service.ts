@@ -9,7 +9,7 @@ import { api } from '@/convex/_generated/api';
 const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL || '');
 
 // Log email to Convex database
-async function logEmail(emailLog: EmailLog): Promise<void> {
+async function logEmail(emailLog: EmailLog, emailRequest?: EmailRequest): Promise<void> {
   try {
     await convex.mutation(api.emailLogs.createEmailLog, {
       messageId: emailLog.id,
@@ -17,7 +17,14 @@ async function logEmail(emailLog: EmailLog): Promise<void> {
       subject: emailLog.subject,
       status: emailLog.status === 'fallback' ? 'success' : (emailLog.status as any),
       provider: emailLog.provider,
-      metadata: emailLog.apiKeyId ? { apiKeyId: emailLog.apiKeyId } : undefined,
+      metadata: {
+        apiKeyId: emailLog.apiKeyId,
+        senderName: emailRequest?.senderName,
+        replyTo: emailRequest?.replyTo,
+        hasHtml: !!emailRequest?.html,
+        bodyLength: emailRequest?.body?.length,
+        htmlLength: emailRequest?.html?.length,
+      },
       error: emailLog.errorMessage,
     });
   } catch (error) {
@@ -160,7 +167,7 @@ async function sendViaBrevo(email: EmailRequest): Promise<{ success: boolean; er
 export async function sendEmail(email: EmailRequest, apiKeyId?: string): Promise<SendEmailResponse> {
   const logId = uuidv4();
   const timestamp = new Date().toISOString();
-  const sender = email.from || 'noreply@falak.me';
+  const sender = email.from || process.env.DEFAULT_FROM_EMAIL || 'noreply@alerts.falak.me';
 
   // Try NotificationAPI first
   console.log('[Mail Relay] Attempting to send via NotificationAPI...');
@@ -177,7 +184,7 @@ export async function sendEmail(email: EmailRequest, apiKeyId?: string): Promise
       provider: 'notificationapi',
       apiKeyId,
     };
-    logEmail(emailLog);
+    logEmail(emailLog, email);
     console.log('[Mail Relay] Email sent successfully via NotificationAPI');
     
     return {
@@ -203,7 +210,7 @@ export async function sendEmail(email: EmailRequest, apiKeyId?: string): Promise
       provider: 'brevo',
       apiKeyId,
     };
-    logEmail(emailLog);
+    logEmail(emailLog, email);
     console.log('[Mail Relay] Email sent successfully via Brevo (fallback)');
     
     return {
@@ -226,7 +233,7 @@ export async function sendEmail(email: EmailRequest, apiKeyId?: string): Promise
     apiKeyId,
     errorMessage: `NotificationAPI: ${notificationResult.error}; Brevo: ${brevoResult.error}`,
   };
-  logEmail(emailLog);
+  logEmail(emailLog, email);
   console.error('[Mail Relay] Both providers failed:', emailLog.errorMessage);
 
   return {

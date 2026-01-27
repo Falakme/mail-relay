@@ -28,13 +28,18 @@ export async function GET(request: NextRequest) {
 
     try {
       const apiKeys = await convex.query(api.apiKeys.getApiKeys);
-      // Mask the actual keys for security
-      const maskedKeys = (apiKeys as any[]).map(key => ({
-        ...key,
-        key: key.key.substring(0, 8) + '...' + key.key.substring(key.key.length - 4),
+      // Don't return the key field since it's now a hash - only return metadata
+      const keyMetadata = (apiKeys as any[]).map(key => ({
+        _id: key._id,
+        _creationTime: key._creationTime,
+        name: key.name,
+        isActive: key.isActive,
+        createdAt: key.createdAt,
+        usageCount: key.usageCount,
+        lastUsed: key.lastUsed,
       }));
 
-      return NextResponse.json({ success: true, apiKeys: maskedKeys });
+      return NextResponse.json({ success: true, apiKeys: keyMetadata });
     } catch (dbError) {
       console.error('[API /api-keys GET] Database error:', dbError);
       // Return empty keys if database is unavailable

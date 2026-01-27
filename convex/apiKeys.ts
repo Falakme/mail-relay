@@ -87,8 +87,9 @@ export const incrementUsageCount = mutation({
     key: v.string(),
   },
   async handler(ctx, args) {
+    const keyHash = hashApiKey(args.key);
     const keys = await ctx.db.query("apiKeys").collect();
-    const apiKey = keys.find((k) => k.key === args.key);
+    const apiKey = keys.find((k) => k.key === keyHash);
     if (!apiKey) {
       throw new Error("API key not found");
     }

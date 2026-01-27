@@ -443,7 +443,7 @@ function EmailLogsPanel() {
                 </thead>
                 <tbody className="divide-y divide-brand-accent/30">
                   {logs.map((log) => (
-                    <tr key={log.id} className="hover:bg-brand-accent/50">
+                    <tr key={log._id} className="hover:bg-brand-accent/50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground/80">
                         {new Date(log.timestamp).toLocaleString()}
                       </td>
@@ -471,7 +471,7 @@ function EmailLogsPanel() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         <button
-                          onClick={() => deleteLog(log.id)}
+                          onClick={() => deleteLog(log._id)}
                           className="text-red-400 hover:text-red-300"
                         >
                           Delete
@@ -713,7 +713,7 @@ function ApiKeysPanel() {
   }
 
   function startEditing(key: any) {
-    setEditingKey(key.id);
+    setEditingKey(key._id);
     setEditName(key.name);
   }
 
@@ -805,9 +805,9 @@ function ApiKeysPanel() {
         ) : (
           <div className="divide-y divide-brand-accent/30">
             {apiKeys.map((key) => (
-              <div key={key.id} className="p-6 flex items-center justify-between hover:bg-brand-accent/50">
+              <div key={key._id} className="p-6 flex items-center justify-between hover:bg-brand-accent/50">
                 <div className="flex-1">
-                  {editingKey === key.id ? (
+                  {editingKey === key._id ? (
                     <div className="flex items-center space-x-2">
                       <input
                         type="text"
@@ -818,14 +818,14 @@ function ApiKeysPanel() {
                         autoFocus
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' && editName.trim()) {
-                            renameKey(key.id, editName.trim());
+                            renameKey(key._id, editName.trim());
                           } else if (e.key === 'Escape') {
                             cancelEditing();
                           }
                         }}
                       />
                       <button
-                        onClick={() => editName.trim() && renameKey(key.id, editName.trim())}
+                        onClick={() => editName.trim() && renameKey(key._id, editName.trim())}
                         className="px-2 py-1 text-sm text-green-400 hover:bg-green-900/30 rounded"
                       >
                         Save
@@ -860,8 +860,8 @@ function ApiKeysPanel() {
                       </span>
                     </div>
                   )}
-                  <div className="mt-1 text-sm text-foreground/70 font-mono">
-                    {key.key}
+                  <div className="mt-1 text-sm text-foreground/70">
+                    Usage: {key.usageCount} requests
                   </div>
                   <div className="mt-1 text-xs text-foreground/50">
                     Created: {new Date(key.createdAt).toLocaleDateString()}
@@ -870,13 +870,13 @@ function ApiKeysPanel() {
                 </div>
                 <div className="flex space-x-2">
                   <button
-                    onClick={() => toggleKeyStatus(key.id)}
+                    onClick={() => toggleKeyStatus(key._id)}
                     className="px-3 py-1 text-sm border border-brand-accent/50 rounded hover:bg-brand-accent/50 transition-colors"
                   >
                     {key.isActive ? 'Disable' : 'Enable'}
                   </button>
                   <button
-                    onClick={() => deleteKey(key.id)}
+                    onClick={() => deleteKey(key._id)}
                     className="px-3 py-1 text-sm text-red-400 border border-red-800 rounded hover:bg-red-900/30 transition-colors"
                   >
                     Delete
@@ -1148,7 +1148,7 @@ function DocsPanel() {
           body: testBody,
           html: `<p>${testBody.replace(/\n/g, '<br>')}</p>`,
           senderName: testSenderName,
-          senderEmail: testSenderEmail,
+          from: testSenderEmail,
         }),
       });
 
@@ -1275,6 +1275,19 @@ function DocsPanel() {
           <p className="text-foreground/80 text-sm mb-4">
             Send a test email to verify your setup is working correctly.
           </p>
+          
+          <div className="bg-brand-accent/20 border border-brand-accent/30 rounded-lg p-4 mb-6">
+            <h3 className="text-sm font-semibold text-foreground mb-2">How to use:</h3>
+            <ul className="text-xs text-foreground/70 space-y-1">
+              <li>• <strong>API Key:</strong> Paste an active API key (only for testing, not included in request)</li>
+              <li>• <strong>Recipient Email:</strong> Where to send the test email</li>
+              <li>• <strong>Sender Name:</strong> Display name for the sender (e.g., "My Service")</li>
+              <li>• <strong>Sender Email:</strong> The "from" address (must be verified with your email provider)</li>
+              <li>• <strong>Subject & Body:</strong> Email content to send</li>
+              <li>• Emails route through <strong>NotificationAPI</strong> first, then fallback to <strong>Brevo</strong></li>
+              <li>• Check your spam folder if the email doesn't arrive</li>
+            </ul>
+          </div>
 
           <form onSubmit={sendTestEmail} className="space-y-4">
             {/* API Key Input */}
