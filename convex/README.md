@@ -1,53 +1,122 @@
-# Welcome to your Convex functions directory!
+# Falak Mail Relay - Convex Backend
 
-Write your Convex functions here.
-See https://docs.convex.dev/functions for more.
+This directory contains the Convex backend functions for the Mail Relay application.
 
-A query function that takes two arguments looks like:
+## Database Schema
 
-```ts
-// convex/myFunctions.ts
-import { query } from "./_generated/server";
-import { v } from "convex/values";
+Two main tables are defined in `schema.ts`:
 
-export const myQueryFunction = query({
-  // Validators for arguments.
-  args: {
-    first: v.number(),
-    second: v.string(),
-  },
+### emailLogs Table
+Stores all email sending events with full metadata:
+- `messageId`: Unique message identifier (UUID)
+- `to`: Recipient email address
+- `subject`: Email subject
+- `status`: 'success' | 'failed' | 'pending'
+- `provider`: 'brevo' | 'notificationapi'
+- `timestamp`: ISO 8601 format timestamp
+- `error`: Optional error message
+- `metadata`: Request metadata (senderName, replyTo, contentInfo, apiKeyId)
 
-  // Function implementation.
-  handler: async (ctx, args) => {
-    // Read the database as many times as you need here.
-    // See https://docs.convex.dev/database/reading-data.
-    const documents = await ctx.db.query("tablename").collect();
+**Indexes:**
+- `by_timestamp`: For efficient log queries and filtering by date range
+- `by_status`: For filtering logs by delivery status
 
-    // Arguments passed from the client are properties of the args object.
-    console.log(args.first, args.second);
+### apiKeys Table
+Stores API keys for authentication with hashed security:
+- `name`: User-defined key name
+- `key`: SHA-256 hashed API key (never plaintext)
+- `isActive`: Boolean to enable/disable the key
+- `createdAt`: ISO 8601 format timestamp
+- `lastUsed`: Optional last usage timestamp
+- `usageCount`: Number of successful requests made with this key
 
-    // Write arbitrary JavaScript here: filter, aggregate, build derived data,
-    // remove non-public properties, or create new objects.
-    return documents;
-  },
+**Indexes:**
+- `by_key`: For fast API key lookup during authentication
+- `by_active`: For filtering active keys only
+
+## Functions
+
+### emailLogs.ts
+
+#### `getEmailLogs(limit, offset)`
+Query function to retrieve paginated email logs in descending order by timestamp.
+
+```typescript
+const logs = await convex.query(api.emailLogs.getEmailLogs, { 
+  limit: 50, 
+  offset: 0 
 });
 ```
 
-Using this query function in a React component looks like:
+#### `getEmailLogCount()`
+Query function to get total count of all email logs.
 
-```ts
-const data = useQuery(api.myFunctions.myQueryFunction, {
-  first: 10,
-  second: "hello",
+#### `createEmailLog(messageId, to, subject, status, provider, metadata?, error?)`
+Mutation function to log a sent email with all metadata captured at send time.
+
+#### `deleteEmailLog(id)`
+Mutation function to delete a specific email log record.
+
+### apiKeys.ts
+
+#### `getApiKeys()`
+Query function to retrieve all API keys (with hashed keys, not plaintext).
+
+```typescript
+const keys = await convex.query(api.apiKeys.getApiKeys);
+// Returns: Array with _id, _creationTime, name, key (hash), isActive, createdAt, usageCount, lastUsed
+```
+
+#### `getApiKeyByKey(key)`
+Query function to validate an API key during authentication.
+
+```typescript
+const apiKey = await convex.query(api.apiKeys.getApiKeyByKey, { 
+  key: 'fmr_xxxxx...' 
+});
+// Hashes the key internally before comparison
+```
+
+#### `createApiKey(name, key)`
+Mutation function to create a new API key.
+
+```typescript
+const id = await convex.mutation(api.apiKeys.createApiKey, {
+  name: 'My API Key',
+  key: 'fmr_xxxxx...'  // Gets hashed before storage
 });
 ```
 
-A mutation function looks like:
+#### `deleteApiKey(id)`
+Mutation function to permanently delete an API key.
 
-```ts
-// convex/myFunctions.ts
-import { mutation } from "./_generated/server";
-import { v } from "convex/values";
+#### `toggleApiKeyStatus(id)`
+Mutation function to enable/disable an API key without deleting it.
+
+#### `updateApiKey(id, name?)`
+Mutation function to rename an API key.
+
+#### `incrementUsageCount(key)`
+Mutation function to track API key usage on each successful email send.
+
+## Security
+
+- **API Keys are hashed with SHA-256** before storage using Node.js crypto module
+- **No plaintext keys are ever stored** in the database
+- **getApiKeyByKey()** automatically hashes the incoming key before comparing
+- **Email logs never contain API key values**, only the hashed reference
+
+## Data Retention
+
+For a 100MB Convex database:
+- ~150,000 - 250,000 email log records
+- At 100 emails/day = 2-3 years of retention
+- At 10,000 emails/day = ~2 weeks of retention
+
+Recommendations:
+- Implement archive policies for logs older than 6-12 months
+- Monitor database size regularly
+- Use pagination when querying large datasets
 
 export const myMutationFunction = mutation({
   // Validators for arguments.
