@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAuthenticated, isAuthenticatedFromRequest } from '@/lib/auth';
 import { getRateLimitStatus } from '@/lib/email-service';
-import { getEmailLogCount } from '@/lib/database';
-import Database from 'better-sqlite3';
-import path from 'path';
+import { ConvexHttpClient } from 'convex/browser';
+import { api } from '@/convex/_generated/api';
 
 export const dynamic = 'force-dynamic';
+
+const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL || '');
 
 export async function GET(request: NextRequest) {
   try {
@@ -26,96 +27,80 @@ export async function GET(request: NextRequest) {
     const rateLimitStatus = getRateLimitStatus();
 
     try {
-      // Get deliverability stats for the selected time period
-      const dbPath = path.join(process.cwd(), 'data', 'mail-relay.db');
-      const db = new Database(dbPath);
+      // Get logs with a high limit to get recent stats
+      const logs = await convex.query(api.emailLogs.getEmailLogs, { 
+        limit: 10000, 
+        offset: 0 
+      }) as any[];
 
-      // Get total emails for ALL TIME
-      const allTimeTotal = db.prepare('SELECT COUNT(*) as count FROM email_logs').get() as { count: number };
-      const totalEmails = allTimeTotal.count;
+      // Filter logs by time period
+      const cutoffTime = new Date(Date.now() - hours * 60 * 60 * 1000);
+      const recentLogs = logs.filter(log => new Date(log.timestamp) >= cutoffTime);
 
-      // Determine grouping interval based on hours
-      let groupFormat: string;
-      if (hours <= 24) {
-        groupFormat = '%Y-%m-%d %H:00'; // Hourly for <= 24 hours
-      } else if (hours <= 168) {
-        groupFormat = '%Y-%m-%d'; // Daily for <= 7 days
-      } else {
-        groupFormat = '%Y-W%W'; // Weekly for > 7 days
-      }
+      // Calculate stats
+      const totalEmails = logs.length;
+      const successful = recentLogs.filter(log => log.status === 'success').length;
+      const failed = recentLogs.filter(log => log.status !== 'success').length;
+      const deliverabilityRate = recentLogs.length > 0 
+        ? Math.round((successful / recentLogs.length) * 100) 
+        : 100;
 
-      // Get stats grouped by interval
-      const timeSeriesStats = db.prepare(`
-        SELECT 
-          strftime('${groupFormat}', timestamp) as interval,
-          COUNT(*) as total,
-          SUM(CASE WHEN status = 'success' THEN 1 ELSE 0 END) as successful,
-          SUM(CASE WHEN status != 'success' THEN 1 ELSE 0 END) as failed
-        FROM email_logs
-        WHERE datetime(timestamp) >= datetime('now', '-${hours} hours')
-        GROUP BY interval
-        ORDER BY interval ASC
-      `).all() as Array<{
-        interval: string;
-        total: number;
-        successful: number;
-        failed: number;
-      }>;
+      // Group logs by hour or day based on time period
+      const timeSeriesMap = new Map<string, { total: number; successful: number; failed: number }>();
+      
+      recentLogs.forEach(log => {
+        const logTime = new Date(log.timestamp);
+        let key: string;
+        
+        if (hours <= 24) {
+          // Hourly
+          key = logTime.toISOString().substring(0, 13) + ':00';
+        } else if (hours <= 168) {
+          // Daily
+          key = logTime.toISOString().substring(0, 10);
+        } else {
+          // Weekly
+          const weekNum = Math.floor((logTime.getTime() - new Date(logTime.getFullYear(), 0, 1).getTime()) / (7 * 24 * 60 * 60 * 1000));
+          key = `Week ${weekNum}`;
+        }
 
-      // Get overall stats for the selected period
-      const overallStats = db.prepare(`
-        SELECT 
-          COUNT(*) as total,
-          SUM(CASE WHEN status = 'success' THEN 1 ELSE 0 END) as successful,
-          SUM(CASE WHEN status != 'success' THEN 1 ELSE 0 END) as failed
-        FROM email_logs
-      WHERE datetime(timestamp) >= datetime('now', '-${hours} hours')
-    `).get() as {
-      total: number;
-      successful: number;
-      failed: number;
-    };
+        if (!timeSeriesMap.has(key)) {
+          timeSeriesMap.set(key, { total: 0, successful: 0, failed: 0 });
+        }
+        
+        const stats = timeSeriesMap.get(key)!;
+        stats.total += 1;
+        if (log.status === 'success') {
+          stats.successful += 1;
+        } else {
+          stats.failed += 1;
+        }
+      });
 
-    db.close();
+      // Convert to array and format
+      const timeSeries = Array.from(timeSeriesMap.entries())
+        .map(([label, stats]) => ({
+          label,
+          ...stats,
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label));
 
-    // Calculate deliverability percentage
-    const deliverabilityRate = overallStats.total > 0 
-      ? Math.round((overallStats.successful / overallStats.total) * 100) 
-      : 100;
-
-    // Format interval labels for display
-    const formattedStats = timeSeriesStats.map((stat) => {
-      let label = stat.interval;
-      if (hours <= 24) {
-        // For hourly, extract just the hour
-        const hour = stat.interval.split(' ')[1];
-        label = hour.substring(0, 2) + ':00';
-      } else if (hours <= 168) {
-        // For daily, format as date
-        label = stat.interval;
-      } else {
-        // For weekly, format as week number
-        label = `Week ${stat.interval.split('W')[1]}`;
-      }
-      return { ...stat, label };
-    });
-
-    return NextResponse.json({
-      success: true,
-      status: 'healthy',
-      totalEmailsSent: totalEmails,
-      rateLimits: rateLimitStatus,
-      deliverability: {
-        period: {
-          total: overallStats.total,
-          successful: overallStats.successful,
-          failed: overallStats.failed,
-          successRate: deliverabilityRate,
+      return NextResponse.json({
+        success: true,
+        status: 'healthy',
+        totalEmailsSent: totalEmails,
+        rateLimits: rateLimitStatus,
+        deliverability: {
+          period: {
+            total: recentLogs.length,
+            successful,
+            failed,
+            successRate: deliverabilityRate,
+          },
+          timeSeries,
         },
-        timeSeries: formattedStats,
-      },
-      timestamp: new Date().toISOString(),
-    });
+        timestamp: new Date().toISOString(),
+      });
     } catch (dbError) {
       console.error('[API /status] Database error:', dbError);
       // Return basic status if database is unavailable

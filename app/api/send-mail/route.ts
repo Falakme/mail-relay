@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sendEmail } from '@/lib/email-service';
 import { EmailRequest } from '@/lib/types';
-import { getApiKeyByKey, updateApiKeyLastUsed } from '@/lib/database';
+import { ConvexHttpClient } from 'convex/browser';
+import { api } from '@/convex/_generated/api';
 
 export const dynamic = 'force-dynamic';
 
+const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL || '');
+
 // Validate API key from Authorization header
-function validateApiKey(request: NextRequest): { valid: boolean; keyId?: string } {
+async function validateApiKey(request: NextRequest): Promise<{ valid: boolean; keyId?: string; key?: string }> {
   const authHeader = request.headers.get('Authorization');
   
   if (!authHeader) {
@@ -18,10 +21,14 @@ function validateApiKey(request: NextRequest): { valid: boolean; keyId?: string 
     ? authHeader.slice(7) 
     : authHeader;
 
-  const apiKey = getApiKeyByKey(key);
-  
-  if (apiKey && apiKey.isActive) {
-    return { valid: true, keyId: apiKey.id };
+  try {
+    const apiKey = await convex.query(api.apiKeys.getApiKeyByKey, { key });
+    
+    if (apiKey && apiKey.isActive) {
+      return { valid: true, keyId: apiKey._id, key };
+    }
+  } catch (error) {
+    console.error('[API /send-mail] Error validating API key:', error);
   }
 
   return { valid: false };
@@ -30,7 +37,7 @@ function validateApiKey(request: NextRequest): { valid: boolean; keyId?: string 
 export async function POST(request: NextRequest) {
   try {
     // Validate API key
-    const { valid, keyId } = validateApiKey(request);
+    const { valid, key } = await validateApiKey(request);
     if (!valid) {
       return NextResponse.json(
         { success: false, message: 'Invalid or missing API key. Include Authorization header.' },
@@ -39,8 +46,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Update last used timestamp
-    if (keyId) {
-      updateApiKeyLastUsed(keyId);
+    if (key) {
+      try {
+        await convex.mutation(api.apiKeys.incrementUsageCount, { key });
+      } catch (error) {
+        console.error('[API /send-mail] Error updating usage count:', error);
+        // Don't fail the request if this fails
+      }
     }
 
     const body = await request.json();
@@ -88,7 +100,7 @@ export async function POST(request: NextRequest) {
       replyTo: replyTo || undefined,
     };
 
-    const result = await sendEmail(emailRequest, keyId);
+    const result = await sendEmail(emailRequest, key || undefined);
 
     return NextResponse.json(result, {
       status: result.success ? 200 : 500,

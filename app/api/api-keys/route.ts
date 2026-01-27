@@ -1,17 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { v4 as uuidv4 } from 'uuid';
 import { randomBytes } from 'crypto';
 import { isAuthenticated, isAuthenticatedFromRequest } from '@/lib/auth';
-import { 
-  getApiKeys, 
-  createApiKey, 
-  deleteApiKey, 
-  toggleApiKeyStatus, 
-  updateApiKey 
-} from '@/lib/database';
+import { ConvexHttpClient } from 'convex/browser';
+import { api } from '@/convex/_generated/api';
 
 export const dynamic = 'force-dynamic';
-import { ApiKey } from '@/lib/types';
+
+const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL || '');
 
 // Generate a secure random API key
 function generateApiKey(): string {
@@ -32,9 +27,9 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-      const apiKeys = getApiKeys();
+      const apiKeys = await convex.query(api.apiKeys.getApiKeys);
       // Mask the actual keys for security
-      const maskedKeys = apiKeys.map(key => ({
+      const maskedKeys = (apiKeys as any[]).map(key => ({
         ...key,
         key: key.key.substring(0, 8) + '...' + key.key.substring(key.key.length - 4),
       }));
@@ -59,6 +54,7 @@ export async function POST(request: NextRequest) {
     const authenticatedViaCookie = await isAuthenticated();
     const authenticatedViaHeader = isAuthenticatedFromRequest(request);
     const authenticated = authenticatedViaCookie || authenticatedViaHeader;
+    
     if (!authenticated) {
       return NextResponse.json(
         { success: false, message: 'Unauthorized' },
@@ -78,25 +74,32 @@ export async function POST(request: NextRequest) {
 
     const generatedKey = generateApiKey();
 
-    const apiKey: ApiKey = {
-      id: uuidv4(),
-      name,
-      key: generatedKey,
-      createdAt: new Date().toISOString(),
-      isActive: true,
-    };
+    try {
+      const id = await convex.mutation(api.apiKeys.createApiKey, {
+        name,
+        key: generatedKey,
+      });
 
-    createApiKey(apiKey);
-
-    // Return the full key only on creation - user must copy it now
-    return NextResponse.json({ 
-      success: true, 
-      message: 'API key created successfully',
-      apiKey: {
-        ...apiKey,
-        key: generatedKey, // Show full key only on creation
-      }
-    });
+      // Return the full key only on creation - user must copy it now
+      return NextResponse.json({ 
+        success: true, 
+        message: 'API key created successfully',
+        apiKey: {
+          _id: id,
+          name,
+          key: generatedKey,
+          createdAt: new Date().toISOString(),
+          isActive: true,
+          usageCount: 0,
+        }
+      });
+    } catch (dbError) {
+      console.error('[API /api-keys POST] Database error:', dbError);
+      return NextResponse.json(
+        { success: false, message: 'Failed to create API key' },
+        { status: 500 }
+      );
+    }
   } catch (error) {
     console.error('[API /api-keys POST] Error:', error);
     return NextResponse.json(
@@ -108,7 +111,10 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const authenticated = await isAuthenticated();
+    const authenticatedViaCookie = await isAuthenticated();
+    const authenticatedViaHeader = isAuthenticatedFromRequest(request);
+    const authenticated = authenticatedViaCookie || authenticatedViaHeader;
+    
     if (!authenticated) {
       return NextResponse.json(
         { success: false, message: 'Unauthorized' },
@@ -126,32 +132,28 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    if (action === 'toggle') {
-      const toggled = toggleApiKeyStatus(id);
-      if (!toggled) {
-        return NextResponse.json(
-          { success: false, message: 'API key not found' },
-          { status: 404 }
-        );
+    try {
+      if (action === 'toggle') {
+        await convex.mutation(api.apiKeys.toggleApiKeyStatus, { id: id as any });
+        return NextResponse.json({ success: true, message: 'API key status toggled' });
       }
-      return NextResponse.json({ success: true, message: 'API key status toggled' });
-    }
 
-    if (action === 'update' && updates) {
-      const updated = updateApiKey(id, updates);
-      if (!updated) {
-        return NextResponse.json(
-          { success: false, message: 'API key not found or no changes made' },
-          { status: 404 }
-        );
+      if (action === 'update' && updates) {
+        await convex.mutation(api.apiKeys.updateApiKey, { id: id as any, ...updates });
+        return NextResponse.json({ success: true, message: 'API key updated successfully' });
       }
-      return NextResponse.json({ success: true, message: 'API key updated successfully' });
-    }
 
-    return NextResponse.json(
-      { success: false, message: 'Invalid action' },
-      { status: 400 }
-    );
+      return NextResponse.json(
+        { success: false, message: 'Invalid action' },
+        { status: 400 }
+      );
+    } catch (dbError) {
+      console.error('[API /api-keys PUT] Database error:', dbError);
+      return NextResponse.json(
+        { success: false, message: 'Failed to update API key' },
+        { status: 500 }
+      );
+    }
   } catch (error) {
     console.error('[API /api-keys PUT] Error:', error);
     return NextResponse.json(
@@ -163,7 +165,10 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const authenticated = await isAuthenticated();
+    const authenticatedViaCookie = await isAuthenticated();
+    const authenticatedViaHeader = isAuthenticatedFromRequest(request);
+    const authenticated = authenticatedViaCookie || authenticatedViaHeader;
+    
     if (!authenticated) {
       return NextResponse.json(
         { success: false, message: 'Unauthorized' },
@@ -181,15 +186,16 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const deleted = deleteApiKey(id);
-    if (!deleted) {
+    try {
+      await convex.mutation(api.apiKeys.deleteApiKey, { id: id as any });
+      return NextResponse.json({ success: true, message: 'API key deleted successfully' });
+    } catch (dbError) {
+      console.error('[API /api-keys DELETE] Database error:', dbError);
       return NextResponse.json(
-        { success: false, message: 'API key not found' },
-        { status: 404 }
+        { success: false, message: 'Failed to delete API key' },
+        { status: 500 }
       );
     }
-
-    return NextResponse.json({ success: true, message: 'API key deleted successfully' });
   } catch (error) {
     console.error('[API /api-keys DELETE] Error:', error);
     return NextResponse.json(

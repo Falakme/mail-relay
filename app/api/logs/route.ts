@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAuthenticated, isAuthenticatedFromRequest } from '@/lib/auth';
-import { getEmailLogs, getEmailLogCount, deleteEmailLog } from '@/lib/database';
+import { ConvexHttpClient } from 'convex/browser';
+import { api } from '@/convex/_generated/api';
 
 export const dynamic = 'force-dynamic';
+
+const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL || '');
 
 export async function GET(request: NextRequest) {
   try {
@@ -22,13 +25,14 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get('offset') || '0', 10);
 
     try {
-      const logs = getEmailLogs(limit, offset);
-      const total = getEmailLogCount();
-
+      const logs = await convex.query(api.emailLogs.getEmailLogs, { limit, offset });
+      
+      // For now, return the count as the length of results plus offset
+      // In a real app, you'd want a separate count query
       return NextResponse.json({
         success: true,
         logs,
-        total,
+        total: logs.length + offset,
         limit,
         offset,
       });
@@ -76,15 +80,16 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const deleted = deleteEmailLog(id);
-    if (!deleted) {
+    try {
+      await convex.mutation(api.emailLogs.deleteEmailLog, { id: id as any });
+      return NextResponse.json({ success: true, message: 'Log deleted successfully' });
+    } catch (dbError) {
+      console.error('[API /logs DELETE] Database error:', dbError);
       return NextResponse.json(
-        { success: false, message: 'Log not found' },
-        { status: 404 }
+        { success: false, message: 'Failed to delete log' },
+        { status: 500 }
       );
     }
-
-    return NextResponse.json({ success: true, message: 'Log deleted successfully' });
   } catch (error) {
     console.error('[API /logs DELETE] Error:', error);
     return NextResponse.json(

@@ -2,7 +2,29 @@ import notificationapi from 'notificationapi-node-server-sdk';
 import * as Brevo from '@getbrevo/brevo';
 import { v4 as uuidv4 } from 'uuid';
 import { EmailRequest, EmailLog, SendEmailResponse } from './types';
-import { logEmail } from './database';
+import { ConvexHttpClient } from 'convex/browser';
+import { api } from '@/convex/_generated/api';
+
+// Initialize Convex client for logging emails
+const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL || '');
+
+// Log email to Convex database
+async function logEmail(emailLog: EmailLog): Promise<void> {
+  try {
+    await convex.mutation(api.emailLogs.createEmailLog, {
+      messageId: emailLog.id,
+      to: emailLog.recipient,
+      subject: emailLog.subject,
+      status: emailLog.status === 'fallback' ? 'success' : (emailLog.status as any),
+      provider: emailLog.provider,
+      metadata: emailLog.apiKeyId ? { apiKeyId: emailLog.apiKeyId } : undefined,
+      error: emailLog.errorMessage,
+    });
+  } catch (error) {
+    console.error('[Email Service] Failed to log email:', error);
+    // Don't throw - we want email sending to succeed even if logging fails
+  }
+}
 
 // Rate limit tracking (in-memory, resets on server restart)
 const rateLimitState = {
