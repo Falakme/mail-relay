@@ -25,49 +25,50 @@ export async function GET(request: NextRequest) {
 
     const rateLimitStatus = getRateLimitStatus();
 
-    // Get deliverability stats for the selected time period
-    const dbPath = path.join(process.cwd(), 'data', 'mail-relay.db');
-    const db = new Database(dbPath);
+    try {
+      // Get deliverability stats for the selected time period
+      const dbPath = path.join(process.cwd(), 'data', 'mail-relay.db');
+      const db = new Database(dbPath);
 
-    // Get total emails for ALL TIME
-    const allTimeTotal = db.prepare('SELECT COUNT(*) as count FROM email_logs').get() as { count: number };
-    const totalEmails = allTimeTotal.count;
+      // Get total emails for ALL TIME
+      const allTimeTotal = db.prepare('SELECT COUNT(*) as count FROM email_logs').get() as { count: number };
+      const totalEmails = allTimeTotal.count;
 
-    // Determine grouping interval based on hours
-    let groupFormat: string;
-    if (hours <= 24) {
-      groupFormat = '%Y-%m-%d %H:00'; // Hourly for <= 24 hours
-    } else if (hours <= 168) {
-      groupFormat = '%Y-%m-%d'; // Daily for <= 7 days
-    } else {
-      groupFormat = '%Y-W%W'; // Weekly for > 7 days
-    }
+      // Determine grouping interval based on hours
+      let groupFormat: string;
+      if (hours <= 24) {
+        groupFormat = '%Y-%m-%d %H:00'; // Hourly for <= 24 hours
+      } else if (hours <= 168) {
+        groupFormat = '%Y-%m-%d'; // Daily for <= 7 days
+      } else {
+        groupFormat = '%Y-W%W'; // Weekly for > 7 days
+      }
 
-    // Get stats grouped by interval
-    const timeSeriesStats = db.prepare(`
-      SELECT 
-        strftime('${groupFormat}', timestamp) as interval,
-        COUNT(*) as total,
-        SUM(CASE WHEN status = 'success' THEN 1 ELSE 0 END) as successful,
-        SUM(CASE WHEN status != 'success' THEN 1 ELSE 0 END) as failed
-      FROM email_logs
-      WHERE datetime(timestamp) >= datetime('now', '-${hours} hours')
-      GROUP BY interval
-      ORDER BY interval ASC
-    `).all() as Array<{
-      interval: string;
-      total: number;
-      successful: number;
-      failed: number;
-    }>;
+      // Get stats grouped by interval
+      const timeSeriesStats = db.prepare(`
+        SELECT 
+          strftime('${groupFormat}', timestamp) as interval,
+          COUNT(*) as total,
+          SUM(CASE WHEN status = 'success' THEN 1 ELSE 0 END) as successful,
+          SUM(CASE WHEN status != 'success' THEN 1 ELSE 0 END) as failed
+        FROM email_logs
+        WHERE datetime(timestamp) >= datetime('now', '-${hours} hours')
+        GROUP BY interval
+        ORDER BY interval ASC
+      `).all() as Array<{
+        interval: string;
+        total: number;
+        successful: number;
+        failed: number;
+      }>;
 
-    // Get overall stats for the selected period
-    const overallStats = db.prepare(`
-      SELECT 
-        COUNT(*) as total,
-        SUM(CASE WHEN status = 'success' THEN 1 ELSE 0 END) as successful,
-        SUM(CASE WHEN status != 'success' THEN 1 ELSE 0 END) as failed
-      FROM email_logs
+      // Get overall stats for the selected period
+      const overallStats = db.prepare(`
+        SELECT 
+          COUNT(*) as total,
+          SUM(CASE WHEN status = 'success' THEN 1 ELSE 0 END) as successful,
+          SUM(CASE WHEN status != 'success' THEN 1 ELSE 0 END) as failed
+        FROM email_logs
       WHERE datetime(timestamp) >= datetime('now', '-${hours} hours')
     `).get() as {
       total: number;
@@ -115,13 +116,34 @@ export async function GET(request: NextRequest) {
       },
       timestamp: new Date().toISOString(),
     });
+    } catch (dbError) {
+      console.error('[API /status] Database error:', dbError);
+      // Return basic status if database is unavailable
+      return NextResponse.json({
+        success: true,
+        status: 'degraded',
+        totalEmailsSent: 0,
+        rateLimits: rateLimitStatus,
+        deliverability: {
+          period: {
+            total: 0,
+            successful: 0,
+            failed: 0,
+            successRate: 100,
+          },
+          timeSeries: [],
+        },
+        timestamp: new Date().toISOString(),
+        warning: 'Database unavailable',
+      });
+    }
   } catch (error) {
     console.error('[API /status] Error:', error);
     return NextResponse.json(
       { 
         success: false, 
         status: 'unhealthy',
-        message: 'Internal server error' 
+        message: `Internal server error: ${error instanceof Error ? error.message : 'Unknown error'}` 
       },
       { status: 500 }
     );

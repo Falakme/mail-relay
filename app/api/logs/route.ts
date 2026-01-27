@@ -21,20 +21,33 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '50', 10);
     const offset = parseInt(searchParams.get('offset') || '0', 10);
 
-    const logs = getEmailLogs(limit, offset);
-    const total = getEmailLogCount();
+    try {
+      const logs = getEmailLogs(limit, offset);
+      const total = getEmailLogCount();
 
-    return NextResponse.json({
-      success: true,
-      logs,
-      total,
-      limit,
-      offset,
-    });
+      return NextResponse.json({
+        success: true,
+        logs,
+        total,
+        limit,
+        offset,
+      });
+    } catch (dbError) {
+      console.error('[API /logs] Database error:', dbError);
+      // Return empty logs if database is unavailable (e.g., on Vercel serverless)
+      return NextResponse.json({
+        success: true,
+        logs: [],
+        total: 0,
+        limit,
+        offset,
+        warning: 'Database unavailable'
+      });
+    }
   } catch (error) {
     console.error('[API /logs] Error:', error);
     return NextResponse.json(
-      { success: false, message: 'Internal server error' },
+      { success: false, message: `Internal server error: ${error instanceof Error ? error.message : 'Unknown error'}` },
       { status: 500 }
     );
   }

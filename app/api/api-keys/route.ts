@@ -31,18 +31,24 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const apiKeys = getApiKeys();
-    // Mask the actual keys for security
-    const maskedKeys = apiKeys.map(key => ({
-      ...key,
-      key: key.key.substring(0, 8) + '...' + key.key.substring(key.key.length - 4),
-    }));
+    try {
+      const apiKeys = getApiKeys();
+      // Mask the actual keys for security
+      const maskedKeys = apiKeys.map(key => ({
+        ...key,
+        key: key.key.substring(0, 8) + '...' + key.key.substring(key.key.length - 4),
+      }));
 
-    return NextResponse.json({ success: true, apiKeys: maskedKeys });
+      return NextResponse.json({ success: true, apiKeys: maskedKeys });
+    } catch (dbError) {
+      console.error('[API /api-keys GET] Database error:', dbError);
+      // Return empty keys if database is unavailable
+      return NextResponse.json({ success: true, apiKeys: [] });
+    }
   } catch (error) {
     console.error('[API /api-keys GET] Error:', error);
     return NextResponse.json(
-      { success: false, message: 'Internal server error' },
+      { success: false, message: `Internal server error: ${error instanceof Error ? error.message : 'Unknown error'}` },
       { status: 500 }
     );
   }
