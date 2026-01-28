@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { randomBytes } from 'crypto';
 import { isAuthenticated, isAuthenticatedFromRequest } from '@/lib/auth';
 import { getConvexClient } from '@/lib/convex-client';
+import { hashApiKey } from '@/lib/crypto-utils';
 import { api } from '@/convex/_generated/api';
 
 export const dynamic = 'force-dynamic';
@@ -82,7 +83,7 @@ export async function POST(request: NextRequest) {
     try {
       const id = await convex.mutation(api.apiKeys.createApiKey, {
         name,
-        key: generatedKey,
+        key: hashApiKey(generatedKey),
       });
 
       // Return the full key only on creation - user must copy it now

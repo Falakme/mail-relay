@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { sendEmail } from '@/lib/email-service';
 import { EmailRequest } from '@/lib/types';
 import { getConvexClient } from '@/lib/convex-client';
+import { hashApiKey } from '@/lib/crypto-utils';
 import { api } from '@/convex/_generated/api';
 
 export const dynamic = 'force-dynamic';
@@ -20,10 +21,11 @@ async function validateApiKey(request: NextRequest, convex: any): Promise<{ vali
     : authHeader;
 
   try {
-    const apiKey = await convex.query(api.apiKeys.getApiKeyByKey, { key });
+    const hashedKey = hashApiKey(key);
+    const apiKey = await convex.query(api.apiKeys.getApiKeyByKey, { key: hashedKey });
     
     if (apiKey && apiKey.isActive) {
-      return { valid: true, keyId: apiKey._id, key };
+      return { valid: true, keyId: apiKey._id, key: hashedKey };
     }
   } catch (error) {
     console.error('[API /send-mail] Error validating API key:', error);

@@ -1,11 +1,8 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { createHash } from "crypto";
 
-// Hash an API key using SHA-256
-function hashApiKey(key: string): string {
-  return createHash('sha256').update(key).digest('hex');
-}
+// Note: API key hashing happens on the server-side (in Next.js API routes)
+// before being sent to Convex. This keeps Convex functions browser-compatible.
 
 export const getApiKeys = query({
   async handler(ctx) {
@@ -19,9 +16,9 @@ export const getApiKeyByKey = query({
     key: v.string(),
   },
   async handler(ctx, args) {
-    const keyHash = hashApiKey(args.key);
+    // args.key is already hashed by the caller
     const keys = await ctx.db.query("apiKeys").collect();
-    return keys.find((k) => k.key === keyHash) || null;
+    return keys.find((k) => k.key === args.key) || null;
   },
 });
 
@@ -31,10 +28,10 @@ export const createApiKey = mutation({
     key: v.string(),
   },
   async handler(ctx, args) {
-    const keyHash = hashApiKey(args.key);
+    // args.key is already hashed by the caller
     const id = await ctx.db.insert("apiKeys", {
       name: args.name,
-      key: keyHash,
+      key: args.key,
       isActive: true,
       createdAt: new Date().toISOString(),
       usageCount: 0,
@@ -87,9 +84,9 @@ export const incrementUsageCount = mutation({
     key: v.string(),
   },
   async handler(ctx, args) {
-    const keyHash = hashApiKey(args.key);
+    // args.key is already hashed by the caller
     const keys = await ctx.db.query("apiKeys").collect();
-    const apiKey = keys.find((k) => k.key === keyHash);
+    const apiKey = keys.find((k) => k.key === args.key);
     if (!apiKey) {
       throw new Error("API key not found");
     }
