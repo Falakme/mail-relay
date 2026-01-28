@@ -170,6 +170,7 @@ export default function AdminPage() {
 
 function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const [activeTab, setActiveTab] = useState<'logs' | 'keys' | 'status' | 'docs'>('logs');
+  const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
 
   useEffect(() => {
     // Get initial tab from URL hash
@@ -183,6 +184,21 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
     setActiveTab(tab);
     window.location.hash = `#${tab}`;
   };
+
+  function showConfirm(message: string, onConfirm: () => void) {
+    setConfirmDialog({ message, onConfirm });
+  }
+
+  function handleConfirm() {
+    if (confirmDialog) {
+      confirmDialog.onConfirm();
+      setConfirmDialog(null);
+    }
+  }
+
+  function handleCancel() {
+    setConfirmDialog(null);
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -234,16 +250,40 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
 
       {/* Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {activeTab === 'logs' && <EmailLogsPanel />}
-        {activeTab === 'keys' && <ApiKeysPanel />}
+        {activeTab === 'logs' && <EmailLogsPanel showConfirm={showConfirm} />}
+        {activeTab === 'keys' && <ApiKeysPanel showConfirm={showConfirm} />}
         {activeTab === 'status' && <StatusPanel />}
         {activeTab === 'docs' && <DocsPanel />}
       </main>
+
+      {/* Confirmation Dialog */}
+      {confirmDialog && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+          <div className="bg-brand-accent border border-brand-accent/50 rounded-xl shadow-lg p-6 max-w-md w-11/12">
+            <h3 className="text-lg font-semibold text-foreground mb-4">Confirm Action</h3>
+            <p className="text-foreground/80 mb-6">{confirmDialog.message}</p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={handleCancel}
+                className="px-4 py-2 rounded-lg text-sm font-medium text-foreground border border-brand-accent/50 hover:bg-brand-accent/20 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirm}
+                className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-red-600 hover:bg-red-700 transition-colors"
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function EmailLogsPanel() {
+function EmailLogsPanel({ showConfirm }: { showConfirm: (message: string, onConfirm: () => void) => void }) {
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
@@ -310,43 +350,43 @@ function EmailLogsPanel() {
   }
 
   async function deleteLog(id: string) {
-    if (!confirm('Are you sure you want to delete this log?')) return;
-    
-    try {
-      const res = await fetch('/api/logs', {
-        method: 'DELETE',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ id }),
-        credentials: 'include',
-      });
-      const data = await res.json();
-      if (data.success) {
-        fetchLogs();
-      }
-    } catch (error) {
-      console.error('Failed to delete log:', error);
-    }
-  }
-
-  async function deleteSelectedLogs() {
-    if (selectedLogs.size === 0) return;
-    if (!confirm(`Delete ${selectedLogs.size} selected log(s)?`)) return;
-    
-    try {
-      // Delete each selected log
-      for (const id of selectedLogs) {
-        await fetch('/api/logs', {
+    showConfirm('Are you sure you want to delete this log?', async () => {
+      try {
+        const res = await fetch('/api/logs', {
           method: 'DELETE',
           headers: getAuthHeaders(),
           body: JSON.stringify({ id }),
           credentials: 'include',
         });
+        const data = await res.json();
+        if (data.success) {
+          fetchLogs();
+        }
+      } catch (error) {
+        console.error('Failed to delete log:', error);
       }
-      setSelectedLogs(new Set());
-      fetchLogs();
-    } catch (error) {
-      console.error('Failed to delete logs:', error);
-    }
+    });
+  }
+
+  async function deleteSelectedLogs() {
+    if (selectedLogs.size === 0) return;
+    showConfirm(`Delete ${selectedLogs.size} selected log(s)?`, async () => {
+      try {
+        // Delete each selected log
+        for (const id of selectedLogs) {
+          await fetch('/api/logs', {
+            method: 'DELETE',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ id }),
+            credentials: 'include',
+          });
+        }
+        setSelectedLogs(new Set());
+        fetchLogs();
+      } catch (error) {
+        console.error('Failed to delete logs:', error);
+      }
+    });
   }
 
   function toggleSelectLog(id: string) {
@@ -366,6 +406,7 @@ function EmailLogsPanel() {
       setSelectedLogs(new Set(logs.map(log => log._id)));
     }
   }
+
   function getKeyName(keyId: string): string {
     // Simple synchronous lookup from cache
     return keyIdCache[keyId] || 'Unknown';
@@ -724,12 +765,13 @@ function EmailLogsPanel() {
             )}
           </>
         )}
+
       </div>
     </div>
   );
 }
 
-function ApiKeysPanel() {
+function ApiKeysPanel({ showConfirm }: { showConfirm: (message: string, onConfirm: () => void) => void }) {
   const [apiKeys, setApiKeys] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -812,42 +854,42 @@ function ApiKeysPanel() {
   }
 
   async function deleteKey(id: string) {
-    if (!confirm('Are you sure you want to delete this API key?')) return;
-
-    try {
-      const res = await fetch('/api/api-keys', {
-        method: 'DELETE',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ id }),
-        credentials: 'include',
-      });
-      const data = await res.json();
-      if (data.success) {
-        fetchApiKeys();
+    showConfirm('Are you sure you want to delete this API key?', async () => {
+      try {
+        const res = await fetch('/api/api-keys', {
+          method: 'DELETE',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ id }),
+          credentials: 'include',
+        });
+        const data = await res.json();
+        if (data.success) {
+          fetchApiKeys();
+        }
+      } catch (error) {
+        console.error('Failed to delete key:', error);
       }
-    } catch (error) {
-      console.error('Failed to delete key:', error);
-    }
+    });
   }
 
   async function rotateKey(id: string, name: string) {
-    if (!confirm(`Rotate the key "${name}"? The old key will no longer work.`)) return;
-
-    try {
-      const res = await fetch('/api/api-keys', {
-        method: 'PUT',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ id, action: 'rotate' }),
-        credentials: 'include',
-      });
-      const data = await res.json();
-      if (data.success && data.apiKey?.key) {
-        setNewlyCreatedKey(data.apiKey.key);
-        fetchApiKeys();
+    showConfirm(`Rotate the key "${name}"? The old key will no longer work.`, async () => {
+      try {
+        const res = await fetch('/api/api-keys', {
+          method: 'PUT',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ id, action: 'rotate' }),
+          credentials: 'include',
+        });
+        const data = await res.json();
+        if (data.success && data.apiKey?.key) {
+          setNewlyCreatedKey(data.apiKey.key);
+          fetchApiKeys();
+        }
+      } catch (error) {
+        console.error('Failed to rotate key:', error);
       }
-    } catch (error) {
-      console.error('Failed to rotate key:', error);
-    }
+    });
   }
 
   async function renameKey(id: string, newName: string) {
