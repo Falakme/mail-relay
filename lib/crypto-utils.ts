@@ -1,11 +1,20 @@
-import { createHash } from 'crypto';
+import { createHash, createHmac } from 'crypto';
 
 /**
- * Hash an API key using SHA-256
+ * Get the site key for hashing (used as salt/secret)
+ * Falls back to a default if not set (should be configured in production)
+ */
+function getSiteKey(): string {
+  return process.env.SITE_KEY || 'mail-relay-default-key';
+}
+
+/**
+ * Hash an API key using HMAC-SHA256 with site key as salt
  * Returns a hexadecimal string
  */
 export function hashApiKey(key: string): string {
-  return createHash('sha256').update(key).digest('hex');
+  const siteKey = getSiteKey();
+  return createHmac('sha256', siteKey).update(key).digest('hex');
 }
 
 /**
