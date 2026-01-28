@@ -12,6 +12,11 @@ function generateApiKey(): string {
   return 'fmr_' + randomBytes(24).toString('hex');
 }
 
+// Generate a permanent key ID (never changes even if key is rotated)
+function generateKeyId(): string {
+  return 'kid_' + randomBytes(16).toString('hex');
+}
+
 export async function GET(request: NextRequest) {
   try {
     const convex = getConvexClient();
@@ -32,6 +37,7 @@ export async function GET(request: NextRequest) {
       const keyMetadata = (apiKeys as any[]).map(key => ({
         _id: key._id,
         _creationTime: key._creationTime,
+        keyId: key.keyId,
         name: key.name,
         isActive: key.isActive,
         createdAt: key.createdAt,
@@ -79,11 +85,13 @@ export async function POST(request: NextRequest) {
     }
 
     const generatedKey = generateApiKey();
+    const generatedKeyId = generateKeyId();
 
     try {
       const id = await convex.mutation(api.apiKeys.createApiKey, {
         name,
         key: hashApiKey(generatedKey),
+        keyId: generatedKeyId,
       });
 
       // Return the full key only on creation - user must copy it now
@@ -92,6 +100,7 @@ export async function POST(request: NextRequest) {
         message: 'API key created successfully',
         apiKey: {
           _id: id,
+          keyId: generatedKeyId,
           name,
           key: generatedKey,
           createdAt: new Date().toISOString(),
@@ -148,6 +157,19 @@ export async function PUT(request: NextRequest) {
       if (action === 'update' && updates) {
         await convex.mutation(api.apiKeys.updateApiKey, { id: id as any, ...updates });
         return NextResponse.json({ success: true, message: 'API key updated successfully' });
+      }
+
+      if (action === 'rotate') {
+        const newKey = generateApiKey();
+        const hashedNewKey = hashApiKey(newKey);
+        await convex.mutation(api.apiKeys.rotateApiKey, { id: id as any, newHashedKey: hashedNewKey });
+        return NextResponse.json({ 
+          success: true, 
+          message: 'API key rotated successfully',
+          apiKey: {
+            key: newKey,
+          }
+        });
       }
 
       return NextResponse.json(

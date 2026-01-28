@@ -16,6 +16,7 @@ export default defineSchema({
     .index("by_status", ["status"]),
 
   apiKeys: defineTable({
+    keyId: v.string(), // Permanent ID that never changes
     name: v.string(),
     key: v.string(),
     isActive: v.boolean(),
@@ -24,5 +25,6 @@ export default defineSchema({
     usageCount: v.number(),
   })
     .index("by_key", ["key"])
+    .index("by_keyId", ["keyId"])
     .index("by_active", ["isActive"]),
 });

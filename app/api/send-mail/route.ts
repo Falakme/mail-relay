@@ -25,7 +25,7 @@ async function validateApiKey(request: NextRequest, convex: any): Promise<{ vali
     const apiKey = await convex.query(api.apiKeys.getApiKeyByKey, { key: hashedKey });
     
     if (apiKey && apiKey.isActive) {
-      return { valid: true, keyId: apiKey._id, key: hashedKey };
+      return { valid: true, keyId: apiKey.keyId, key: hashedKey };
     }
   } catch (error) {
     console.error('[API /send-mail] Error validating API key:', error);
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
   try {
     const convex = getConvexClient();
     // Validate API key
-    const { valid, key } = await validateApiKey(request, convex);
+    const { valid, keyId, key } = await validateApiKey(request, convex);
     if (!valid) {
       return NextResponse.json(
         { success: false, message: 'Invalid or missing API key. Include Authorization header.' },
@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
       replyTo: replyTo || undefined,
     };
 
-    const result = await sendEmail(emailRequest, key || undefined);
+    const result = await sendEmail(emailRequest, keyId || undefined);
 
     return NextResponse.json(result, {
       status: result.success ? 200 : 500,

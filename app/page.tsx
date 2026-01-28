@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Fragment } from 'react';
 import { useRouter } from 'next/navigation';
+import { Info, Trash2 } from 'lucide-react';
 
 function getAuthHeaders(): Record<string, string> {
   if (typeof window === 'undefined') {
@@ -186,7 +187,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="bg-gradient-to-r from-brand-primary to-brand-primary/80 text-white shadow-lg">
+      <header className="bg-brand-primary text-white shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-2 text-2xl">
@@ -217,8 +218,8 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                 onClick={() => handleTabChange(tab)}
                 className={`py-4 px-2 border-b-2 font-medium text-sm transition-colors ${
                   activeTab === tab
-                    ? 'border-brand-primary text-brand-primary'
-                    : 'border-transparent text-foreground/70 hover:text-foreground hover:border-brand-primary/60'
+                    ? 'border-brand-primary text-foreground'
+                    : 'border-transparent text-foreground/60 hover:text-foreground hover:border-brand-primary'
                 }`}
               >
                 {tab === 'logs' && 'Email Logs'}
@@ -249,10 +250,37 @@ function EmailLogsPanel() {
   const [page, setPage] = useState(0);
   const [limit, setLimit] = useState(20);
   const [jumpToPageInput, setJumpToPageInput] = useState('');
+  const [expandedLogs, setExpandedLogs] = useState<Set<string>>(new Set());
+  const [keyIdCache, setKeyIdCache] = useState<Record<string, string>>({}); // Cache keyId -> name
+  const [selectedLogs, setSelectedLogs] = useState<Set<string>>(new Set()); // Track selected logs for bulk delete
 
   useEffect(() => {
-    fetchLogs();
+    // Fetch API keys once on mount to build cache, then fetch logs
+    const loadData = async () => {
+      await fetchApiKeysForCache();
+      await fetchLogs();
+    };
+    loadData();
   }, [page, limit]);
+
+  async function fetchApiKeysForCache() {
+    try {
+      const res = await fetch('/api/api-keys', {
+        headers: getAuthHeaders(),
+        credentials: 'include',
+      });
+      const data = await res.json();
+      if (data.success && data.apiKeys) {
+        const cache: Record<string, string> = {};
+        data.apiKeys.forEach((key: any) => {
+          cache[key.keyId] = key.name;
+        });
+        setKeyIdCache(cache);
+      }
+    } catch (error) {
+      console.error('Failed to fetch API keys for cache:', error);
+    }
+  }
 
   async function fetchLogs() {
     setLoading(true);
@@ -263,7 +291,15 @@ function EmailLogsPanel() {
       });
       const data = await res.json();
       if (data.success) {
-        setLogs(data.logs);
+        // Enrich logs with key names from cache (synchronous lookup)
+        const enrichedLogs = data.logs.map((log: any) => {
+          if (log.metadata?.apiKeyId) {
+            const keyName = getKeyName(log.metadata.apiKeyId);
+            return { ...log, keyName };
+          }
+          return log;
+        });
+        setLogs(enrichedLogs);
         setTotal(data.total);
       }
     } catch (error) {
@@ -292,18 +328,72 @@ function EmailLogsPanel() {
     }
   }
 
+  async function deleteSelectedLogs() {
+    if (selectedLogs.size === 0) return;
+    if (!confirm(`Delete ${selectedLogs.size} selected log(s)?`)) return;
+    
+    try {
+      // Delete each selected log
+      for (const id of selectedLogs) {
+        await fetch('/api/logs', {
+          method: 'DELETE',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ id }),
+          credentials: 'include',
+        });
+      }
+      setSelectedLogs(new Set());
+      fetchLogs();
+    } catch (error) {
+      console.error('Failed to delete logs:', error);
+    }
+  }
+
+  function toggleSelectLog(id: string) {
+    const newSelected = new Set(selectedLogs);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedLogs(newSelected);
+  }
+
+  function toggleSelectAll() {
+    if (selectedLogs.size === logs.length) {
+      setSelectedLogs(new Set());
+    } else {
+      setSelectedLogs(new Set(logs.map(log => log._id)));
+    }
+  }
+  function getKeyName(keyId: string): string {
+    // Simple synchronous lookup from cache
+    return keyIdCache[keyId] || 'Unknown';
+  }
+
   const totalPages = Math.ceil(total / limit);
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-foreground">Email Logs</h2>
-        <button
-          onClick={fetchLogs}
-          className="bg-brand-primary text-white px-4 py-2 rounded-lg text-sm hover:bg-brand-accent transition-colors"
-        >
-          Refresh
-        </button>
+        <div className="flex gap-2">
+          {selectedLogs.size > 0 && (
+            <button
+              onClick={deleteSelectedLogs}
+              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm transition-colors flex items-center gap-2"
+            >
+              <Trash2 size={16} />
+              Delete {selectedLogs.size}
+            </button>
+          )}
+          <button
+            onClick={fetchLogs}
+            className="bg-brand-primary text-white px-4 py-2 rounded-lg text-sm hover:bg-brand-accent transition-colors"
+          >
+            Refresh
+          </button>
+        </div>
       </div>
 
       <div className="bg-brand-accent/40 border border-brand-accent/50 rounded-xl shadow overflow-hidden">
@@ -315,7 +405,7 @@ function EmailLogsPanel() {
           <>
             {/* Top Pagination */}
             {(totalPages > 1 || total > 0) && (
-              <div className="bg-brand-accent/60 border-b border-brand-accent/50 px-6 py-4 space-y-4">
+              <div className="bg-brand-accent border-b border-brand-accent px-6 py-4 space-y-4">
                 {/* Results Info and Page Size */}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                   <div className="text-sm text-foreground/70">
@@ -376,42 +466,9 @@ function EmailLogsPanel() {
                     </button>
                   </div>
 
-                  {/* Page Jump */}
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-foreground/70">
-                      Page <span className="font-semibold text-foreground">{page + 1}</span> of <span className="font-semibold text-foreground">{totalPages}</span>
-                    </span>
-                    <div className="flex gap-1">
-                      <input
-                        type="number"
-                        min="1"
-                        max={totalPages}
-                        value={jumpToPageInput}
-                        onChange={(e) => setJumpToPageInput(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' && jumpToPageInput) {
-                            const targetPage = Math.min(Math.max(1, Number(jumpToPageInput)) - 1, totalPages - 1);
-                            setPage(targetPage);
-                            setJumpToPageInput('');
-                          }
-                        }}
-                        className="w-12 px-2 py-1 rounded border border-brand-accent/50 bg-brand-accent/60 text-foreground text-sm focus:ring-2 focus:ring-brand-primary"
-                        placeholder="Go to"
-                      />
-                      <button
-                        onClick={() => {
-                          if (jumpToPageInput) {
-                            const targetPage = Math.min(Math.max(1, Number(jumpToPageInput)) - 1, totalPages - 1);
-                            setPage(targetPage);
-                            setJumpToPageInput('');
-                          }
-                        }}
-                        className="px-2 py-1 rounded border border-brand-accent/50 text-sm hover:bg-brand-accent/50 transition-colors"
-                      >
-                        Go
-                      </button>
-                    </div>
-                  </div>
+                  <span className="text-sm text-foreground/70">
+                    Page <span className="font-semibold text-foreground">{page + 1}</span> of <span className="font-semibold text-foreground">{totalPages}</span>
+                  </span>
                 </div>
               </div>
             )}
@@ -419,65 +476,178 @@ function EmailLogsPanel() {
             {/* Table */}
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-brand-accent/60 border-b border-brand-accent/50">
+                <thead className="bg-brand-accent border-b border-brand-accent">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-foreground/80 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-center">
+                      <div className="flex justify-center items-center">
+                        <input
+                          type="checkbox"
+                          ref={(el) => {
+                            if (el) {
+                              el.indeterminate = selectedLogs.size > 0 && selectedLogs.size < logs.length;
+                            }
+                          }}
+                          checked={selectedLogs.size === logs.length && logs.length > 0}
+                          onChange={toggleSelectAll}
+                          className="w-4 h-4 cursor-pointer accent-blue-600"
+                          title="Select all logs"
+                        />
+                      </div>
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-foreground/80 uppercase tracking-wider">
                       Timestamp
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-foreground/80 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-center text-xs font-medium text-foreground/80 uppercase tracking-wider">
                       Recipient
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-foreground/80 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-center text-xs font-medium text-foreground/80 uppercase tracking-wider">
                       Subject
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-foreground/80 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-center text-xs font-medium text-foreground/80 uppercase tracking-wider">
                       Status
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-foreground/80 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-center text-xs font-medium text-foreground/80 uppercase tracking-wider">
                       API Key
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-foreground/80 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-center text-xs font-medium text-foreground/80 uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-brand-accent/30">
                   {logs.map((log) => (
-                    <tr key={log._id} className="hover:bg-brand-accent/50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground/80">
-                        {new Date(log.timestamp).toLocaleString()}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
-                        {log.recipient}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-foreground max-w-xs truncate">
-                        {log.subject}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                            log.status === 'success'
-                              ? 'bg-green-900/30 text-green-400 border border-green-800'
-                              : log.status === 'fallback'
-                              ? 'bg-yellow-900/30 text-yellow-400 border border-yellow-800'
-                              : 'bg-red-900/30 text-red-400 border border-red-800'
-                          }`}
-                        >
-                          {log.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground/80">
-                        {log.apiKeyName || <span className="text-foreground/40 italic">Unknown</span>}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <button
-                          onClick={() => deleteLog(log._id)}
-                          className="text-red-400 hover:text-red-300"
-                        >
-                          Delete
-                        </button>
-                      </td>
-                    </tr>
+                    <Fragment key={log._id}>
+                      <tr className="hover:bg-brand-accent/20">
+                        <td className="px-6 py-2 whitespace-nowrap text-center">
+                          <div className="flex justify-center items-center">
+                            <input
+                              type="checkbox"
+                              checked={selectedLogs.has(log._id)}
+                              onChange={() => toggleSelectLog(log._id)}
+                              className="w-4 h-4 cursor-pointer accent-blue-600"
+                            />
+                          </div>
+                        </td>
+                        <td className="px-6 py-2 whitespace-nowrap text-sm text-foreground/80 text-center">
+                          {new Date(log.timestamp).toLocaleString()}
+                        </td>
+                        <td className="px-6 py-2 whitespace-nowrap text-sm text-foreground text-center">
+                          {log.to}
+                        </td>
+                        <td className="px-6 py-2 text-sm text-foreground max-w-xs truncate text-center">
+                          {log.subject}
+                        </td>
+                        <td className="px-6 py-2 whitespace-nowrap text-center">
+                          <div
+                            className={`inline-block w-3 h-3 rounded-full ${
+                              log.status === 'success'
+                                ? 'bg-green-500'
+                                : log.status === 'fallback'
+                                ? 'bg-yellow-500'
+                                : 'bg-red-500'
+                            }`}
+                            title={log.status}
+                          />
+                        </td>
+                        <td className="px-6 py-2 whitespace-nowrap text-sm text-foreground text-center">
+                          {log.keyName || <span className="text-foreground/40 italic">Unknown</span>}
+                        </td>
+                        <td className="px-6 py-2 whitespace-nowrap text-sm space-x-3 flex justify-center">
+                          <button
+                            onClick={() => {
+                              const newExpanded = new Set(expandedLogs);
+                              if (newExpanded.has(log._id)) {
+                                newExpanded.delete(log._id);
+                              } else {
+                                newExpanded.add(log._id);
+                              }
+                              setExpandedLogs(newExpanded);
+                            }}
+                            className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded transition-colors"
+                            title={expandedLogs.has(log._id) ? 'Hide details' : 'Show details'}
+                          >
+                            <Info size={16} />
+                          </button>
+                          <button
+                            onClick={() => deleteLog(log._id)}
+                            className="bg-red-600 hover:bg-red-700 text-white p-2 rounded transition-colors"
+                            title="Delete log"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </td>
+                      </tr>
+                      {expandedLogs.has(log._id) && (
+                        <tr className="bg-brand-accent/30">
+                          <td colSpan={7} className="px-6 py-4">
+                            <div className="space-y-3">
+                              <div className="grid grid-cols-2 gap-4 text-sm">
+                                <div>
+                                  <div className="text-foreground/60 text-xs uppercase">Message ID</div>
+                                  <div className="text-foreground font-mono text-xs mt-1">{log.messageId}</div>
+                                </div>
+                                <div>
+                                  <div className="text-foreground/60 text-xs uppercase">Provider</div>
+                                  <div className="text-foreground capitalize mt-1">{log.provider}</div>
+                                </div>
+                                <div>
+                                  <div className="text-foreground/60 text-xs uppercase">Status</div>
+                                  <div className="text-foreground capitalize mt-1">{log.status}</div>
+                                </div>
+                                <div>
+                                  <div className="text-foreground/60 text-xs uppercase">To</div>
+                                  <div className="text-foreground mt-1">{log.to}</div>
+                                </div>
+                                <div className="col-span-2">
+                                  <div className="text-foreground/60 text-xs uppercase">Subject</div>
+                                  <div className="text-foreground mt-1">{log.subject}</div>
+                                </div>
+                                {log.metadata && (
+                                  <>
+                                    {log.metadata.senderName && (
+                                      <div>
+                                        <div className="text-foreground/60 text-xs uppercase">Sender Name</div>
+                                        <div className="text-foreground mt-1">{log.metadata.senderName}</div>
+                                      </div>
+                                    )}
+                                    {log.metadata.replyTo && (
+                                      <div>
+                                        <div className="text-foreground/60 text-xs uppercase">Reply To</div>
+                                        <div className="text-foreground mt-1">{log.metadata.replyTo}</div>
+                                      </div>
+                                    )}
+                                    {log.metadata.bodyLength !== undefined && (
+                                      <div>
+                                        <div className="text-foreground/60 text-xs uppercase">Body Length</div>
+                                        <div className="text-foreground mt-1">{log.metadata.bodyLength} chars</div>
+                                      </div>
+                                    )}
+                                    {log.metadata.htmlLength !== undefined && (
+                                      <div>
+                                        <div className="text-foreground/60 text-xs uppercase">HTML Length</div>
+                                        <div className="text-foreground mt-1">{log.metadata.htmlLength} chars</div>
+                                      </div>
+                                    )}
+                                    {log.metadata.apiKeyId && (
+                                      <div>
+                                        <div className="text-foreground/60 text-xs uppercase">API Key ID</div>
+                                        <div className="text-foreground font-mono text-xs mt-1">{log.metadata.apiKeyId}</div>
+                                      </div>
+                                    )}
+                                  </>
+                                )}
+                                {log.error && (
+                                  <div className="col-span-2">
+                                    <div className="text-red-400 text-xs uppercase">Error</div>
+                                    <div className="text-red-300 mt-1 text-sm">{log.error}</div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
                   ))}
                 </tbody>
               </table>
@@ -546,42 +716,9 @@ function EmailLogsPanel() {
                     </button>
                   </div>
 
-                  {/* Page Jump */}
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-foreground/70">
-                      Page <span className="font-semibold text-foreground">{page + 1}</span> of <span className="font-semibold text-foreground">{totalPages}</span>
-                    </span>
-                    <div className="flex gap-1">
-                      <input
-                        type="number"
-                        min="1"
-                        max={totalPages}
-                        value={jumpToPageInput}
-                        onChange={(e) => setJumpToPageInput(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' && jumpToPageInput) {
-                            const targetPage = Math.min(Math.max(1, Number(jumpToPageInput)) - 1, totalPages - 1);
-                            setPage(targetPage);
-                            setJumpToPageInput('');
-                          }
-                        }}
-                        className="w-12 px-2 py-1 rounded border border-brand-accent/50 bg-brand-accent/60 text-foreground text-sm focus:ring-2 focus:ring-brand-primary"
-                        placeholder="Go to"
-                      />
-                      <button
-                        onClick={() => {
-                          if (jumpToPageInput) {
-                            const targetPage = Math.min(Math.max(1, Number(jumpToPageInput)) - 1, totalPages - 1);
-                            setPage(targetPage);
-                            setJumpToPageInput('');
-                          }
-                        }}
-                        className="px-2 py-1 rounded border border-brand-accent/50 text-sm hover:bg-brand-accent/50 transition-colors"
-                      >
-                        Go
-                      </button>
-                    </div>
-                  </div>
+                  <span className="text-sm text-foreground/70">
+                    Page <span className="font-semibold text-foreground">{page + 1}</span> of <span className="font-semibold text-foreground">{totalPages}</span>
+                  </span>
                 </div>
               </div>
             )}
@@ -690,6 +827,26 @@ function ApiKeysPanel() {
       }
     } catch (error) {
       console.error('Failed to delete key:', error);
+    }
+  }
+
+  async function rotateKey(id: string, name: string) {
+    if (!confirm(`Rotate the key "${name}"? The old key will no longer work.`)) return;
+
+    try {
+      const res = await fetch('/api/api-keys', {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ id, action: 'rotate' }),
+        credentials: 'include',
+      });
+      const data = await res.json();
+      if (data.success && data.apiKey?.key) {
+        setNewlyCreatedKey(data.apiKey.key);
+        fetchApiKeys();
+      }
+    } catch (error) {
+      console.error('Failed to rotate key:', error);
     }
   }
 
@@ -860,6 +1017,9 @@ function ApiKeysPanel() {
                       </span>
                     </div>
                   )}
+                  <div className="mt-2 text-xs text-foreground/50 font-mono">
+                    ID: {key.keyId}
+                  </div>
                   <div className="mt-1 text-sm text-foreground/70">
                     Usage: {key.usageCount} requests
                   </div>
@@ -874,6 +1034,13 @@ function ApiKeysPanel() {
                     className="px-3 py-1 text-sm border border-brand-accent/50 rounded hover:bg-brand-accent/50 transition-colors"
                   >
                     {key.isActive ? 'Disable' : 'Enable'}
+                  </button>
+                  <button
+                    onClick={() => rotateKey(key._id, key.name)}
+                    className="px-3 py-1 text-sm text-yellow-400 border border-yellow-800 rounded hover:bg-yellow-900/30 transition-colors"
+                    title="Generate a new API key (old one will stop working)"
+                  >
+                    Rotate
                   </button>
                   <button
                     onClick={() => deleteKey(key._id)}
@@ -934,7 +1101,7 @@ function StatusPanel() {
     <div className="space-y-6">
       <h2 className="text-2xl font-bold text-foreground">System Status</h2>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Health Status */}
         <div className="bg-brand-accent rounded-xl shadow p-6 hover:border-brand-primary/60 transition-colors">
           <h3 className="text-sm font-medium text-foreground/80 uppercase tracking-wider mb-2">
@@ -961,22 +1128,15 @@ function StatusPanel() {
             {status?.totalEmailsSent || 0}
           </span>
         </div>
-
-        {/* Deliverability Rate */}
-        <div className="bg-brand-accent rounded-xl shadow p-6 hover:border-brand-primary/60 transition-colors">
-          <h3 className="text-sm font-medium text-foreground/80 uppercase tracking-wider mb-2">
-            Deliverability
-          </h3>
-          <span className="text-2xl font-bold text-brand-primary">
-            {status?.deliverability?.period?.successRate || 0}%
-          </span>
-        </div>
       </div>
 
       <div className="bg-brand-accent rounded-xl shadow p-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <div>
             <h3 className="text-lg font-semibold text-foreground">Deliverability Stats</h3>
+            <div className="text-3xl font-bold text-brand-primary mt-2">
+              {status?.deliverability?.period?.successRate || 0}%
+            </div>
             <p className="text-xs text-foreground/60 mt-1">
               {timeInterval === 'custom' ? `Last ${customDays} day${customDays !== 1 ? 's' : ''}` : `Last ${timeInterval === '1h' ? '1 hour' : timeInterval === '24h' ? '24 hours' : timeInterval === '7d' ? '7 days' : timeInterval === '30d' ? '30 days' : '90 days'}`}
             </p>
@@ -1014,19 +1174,30 @@ function StatusPanel() {
 
         {/* Custom Days Input */}
         {timeInterval === 'custom' && (
-          <div className="mb-4 flex items-center gap-3">
-            <label htmlFor="customDays" className="text-sm text-foreground/80">
-              Days:
-            </label>
-            <input
-              type="number"
-              id="customDays"
-              min="1"
-              max="365"
-              value={customDays}
-              onChange={(e) => setCustomDays(Math.max(1, Math.min(365, Number(e.target.value))))}
-              className="w-20 px-3 py-1 rounded border border-brand-primary/50 bg-background text-foreground focus:ring-2 focus:ring-brand-primary text-sm"
-            />
+          <div className="mb-6 p-4 bg-brand-accent/50 rounded-lg border border-brand-primary/30">
+            <div className="flex items-center gap-3">
+              <label htmlFor="customDays" className="text-sm font-medium text-foreground/80">
+                Days:
+              </label>
+              <input
+                type="number"
+                id="customDays"
+                min="1"
+                step="1"
+                value={customDays}
+                onChange={(e) => {
+                  const val = Math.max(1, Math.floor(Number(e.target.value) || 1));
+                  setCustomDays(val);
+                }}
+                className="w-24 px-3 py-2 rounded border border-brand-primary/50 bg-background text-foreground focus:ring-2 focus:ring-brand-primary outline-none text-sm"
+              />
+              <button
+                onClick={() => setCustomDays(7)}
+                className="px-3 py-2 rounded border border-brand-primary/50 text-sm text-foreground/80 hover:bg-brand-primary/20"
+              >
+                Reset
+              </button>
+            </div>
           </div>
         )}
 
@@ -1061,10 +1232,10 @@ function StatusPanel() {
             <div className="flex items-center justify-between mb-2">
               <h4 className="font-medium text-foreground">NotificationAPI</h4>
               <span
-                className={`px-2 py-1 text-xs rounded-full border font-semibold ${
+                className={`px-2 py-1 text-xs rounded-full font-semibold ${
                   status?.rateLimits?.notificationapi?.isLimited
-                    ? 'bg-red-600/30 text-red-200 border-red-500/80'
-                    : 'bg-emerald-600/30 text-emerald-200 border-emerald-500/80'
+                    ? 'bg-red-600/30 text-red-200'
+                    : 'bg-emerald-600/30 text-emerald-200'
                 }`}
               >
                 {status?.rateLimits?.notificationapi?.isLimited ? 'Rate Limited' : 'Available'}
@@ -1083,10 +1254,10 @@ function StatusPanel() {
             <div className="flex items-center justify-between mb-2">
               <h4 className="font-medium text-foreground">Brevo</h4>
               <span
-                className={`px-2 py-1 text-xs rounded-full border font-semibold ${
+                className={`px-2 py-1 text-xs rounded-full font-semibold ${
                   status?.rateLimits?.brevo?.isLimited
-                    ? 'bg-red-600/30 text-red-200 border-red-500/80'
-                    : 'bg-emerald-600/30 text-emerald-200 border-emerald-500/80'
+                    ? 'bg-red-600/30 text-red-200'
+                    : 'bg-emerald-600/30 text-emerald-200'
                 }`}
               >
                 {status?.rateLimits?.brevo?.isLimited ? 'Rate Limited' : 'Available'}
