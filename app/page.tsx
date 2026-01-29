@@ -17,6 +17,53 @@ function getAuthHeaders(): Record<string, string> {
   return headers;
 }
 
+type SessionCacheEntry<T> = {
+  data: T;
+};
+
+const SESSION_CACHE_PREFIX = 'mail-relay:';
+
+function buildSessionCacheKey(key: string): string {
+  return `${SESSION_CACHE_PREFIX}${key}`;
+}
+
+function readSessionCache<T>(key: string): T | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = sessionStorage.getItem(buildSessionCacheKey(key));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as SessionCacheEntry<T>;
+    return parsed?.data ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function writeSessionCache<T>(key: string, data: T): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const entry: SessionCacheEntry<T> = { data };
+    sessionStorage.setItem(buildSessionCacheKey(key), JSON.stringify(entry));
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+function clearSessionCacheByPrefix(prefix: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const fullPrefix = buildSessionCacheKey(prefix);
+    for (let i = sessionStorage.length - 1; i >= 0; i -= 1) {
+      const key = sessionStorage.key(i);
+      if (key && key.startsWith(fullPrefix)) {
+        sessionStorage.removeItem(key);
+      }
+    }
+  } catch {
+    // Ignore storage errors
+  }
+}
+
 export default function AdminPage() {
   const router = useRouter();
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
@@ -116,12 +163,12 @@ export default function AdminPage() {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <div className="w-full max-w-md">
-            <div className="bg-brand-accent rounded-2xl shadow-2xl p-8">
+            <div className="bg-[#1a1a1a] rounded-2xl shadow-2xl p-8">
             <div className="text-center mb-8">
               <div className="flex items-center justify-center gap-2 mb-2 text-3xl">
                 <img 
                   src="https://falakme.github.io/brand-assets/logos/core/icon.svg" 
-                  alt="Falak" 
+                  alt="Falak.me" 
                   className="h-[1em] invert"
                 />
                 <h1 className="font-bold">Mail Relay</h1>
@@ -154,7 +201,7 @@ export default function AdminPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-brand-primary hover:bg-brand-primary/85 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full gradient-button text-white font-semibold py-3 px-6 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? 'Logging in...' : 'Login'}
               </button>
@@ -203,7 +250,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="bg-brand-primary text-white shadow-lg">
+      <header className="bg-gradient-to-r from-[#000030] to-[#0000C0] text-white shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-2 text-2xl">
@@ -216,7 +263,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
             </div>
             <button
               onClick={onLogout}
-              className="bg-white/15 hover:bg-white/25 px-4 py-2 rounded-lg text-sm transition-colors border border-white/20"
+              className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg text-sm transition-colors border border-white/30 font-medium"
             >
               Logout
             </button>
@@ -225,17 +272,17 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
       </header>
 
       {/* Navigation Tabs */}
-      <nav className="bg-brand-accent border-b border-brand-primary/40">
+      <nav className="bg-gradient-to-r from-[#0a0a0a] to-[#1a1a2e]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex space-x-8">
             {(['logs', 'keys', 'status', 'docs'] as const).map((tab) => (
               <button
                 key={tab}
                 onClick={() => handleTabChange(tab)}
-                className={`py-4 px-2 border-b-2 font-medium text-sm transition-colors ${
+                className={`relative py-4 px-2 font-medium text-sm transition-colors after:absolute after:bottom-0 after:left-0 after:h-[2px] after:w-full after:bg-gradient-to-r after:from-[#000030] after:to-[#0000C0] after:opacity-0 after:transition-opacity after:content-[''] ${
                   activeTab === tab
-                    ? 'border-brand-primary text-foreground'
-                    : 'border-transparent text-foreground/60 hover:text-foreground hover:border-brand-primary'
+                    ? 'text-foreground after:opacity-100'
+                    : 'text-foreground/60 hover:text-foreground hover:after:opacity-100'
                 }`}
               >
                 {tab === 'logs' && 'Email Logs'}
@@ -250,22 +297,24 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
 
       {/* Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {activeTab === 'logs' && <EmailLogsPanel showConfirm={showConfirm} />}
-        {activeTab === 'keys' && <ApiKeysPanel showConfirm={showConfirm} />}
-        {activeTab === 'status' && <StatusPanel />}
-        {activeTab === 'docs' && <DocsPanel />}
+        <div key={activeTab} className="tab-content">
+          {activeTab === 'logs' && <EmailLogsPanel showConfirm={showConfirm} />}
+          {activeTab === 'keys' && <ApiKeysPanel showConfirm={showConfirm} />}
+          {activeTab === 'status' && <StatusPanel />}
+          {activeTab === 'docs' && <DocsPanel />}
+        </div>
       </main>
 
       {/* Confirmation Dialog */}
       {confirmDialog && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-          <div className="bg-brand-accent border border-brand-accent/50 rounded-xl shadow-lg p-6 max-w-md w-11/12">
+          <div className="bg-[#1a1a1a] rounded-xl shadow-lg p-6 max-w-md w-11/12">
             <h3 className="text-lg font-semibold text-foreground mb-4">Confirm Action</h3>
             <p className="text-foreground/80 mb-6">{confirmDialog.message}</p>
             <div className="flex gap-3 justify-end">
               <button
                 onClick={handleCancel}
-                className="px-4 py-2 rounded-lg text-sm font-medium text-foreground border border-brand-accent/50 hover:bg-brand-accent/20 transition-colors"
+                className="px-4 py-2 rounded-lg text-sm font-medium text-foreground border /40 hover:bg-[#0000C0]/10 transition-colors"
               >
                 Cancel
               </button>
@@ -305,12 +354,24 @@ function EmailLogsPanel({ showConfirm }: { showConfirm: (message: string, onConf
 
   async function fetchApiKeysForCache() {
     try {
+      const cacheKey = '/api/api-keys';
+      const cached = readSessionCache<{ success: boolean; apiKeys?: any[] }>(cacheKey);
+      if (cached?.success && cached.apiKeys) {
+        const cache: Record<string, string> = {};
+        cached.apiKeys.forEach((key: any) => {
+          cache[key.keyId] = key.name;
+        });
+        setKeyIdCache(cache);
+        return;
+      }
+
       const res = await fetch('/api/api-keys', {
         headers: getAuthHeaders(),
         credentials: 'include',
       });
       const data = await res.json();
       if (data.success && data.apiKeys) {
+        writeSessionCache(cacheKey, data);
         const cache: Record<string, string> = {};
         data.apiKeys.forEach((key: any) => {
           cache[key.keyId] = key.name;
@@ -322,15 +383,31 @@ function EmailLogsPanel({ showConfirm }: { showConfirm: (message: string, onConf
     }
   }
 
-  async function fetchLogs() {
+  async function fetchLogs({ force = false }: { force?: boolean } = {}) {
     setLoading(true);
     try {
+      const cacheKey = `/api/logs?limit=${limit}&offset=${page * limit}`;
+      const cached = readSessionCache<{ success: boolean; logs?: any[]; total?: number }>(cacheKey);
+      if (cached?.success && cached.logs && !force) {
+        const enrichedLogs = cached.logs.map((log: any) => {
+          if (log.metadata?.apiKeyId) {
+            const keyName = getKeyName(log.metadata.apiKeyId);
+            return { ...log, keyName };
+          }
+          return log;
+        });
+        setLogs(enrichedLogs);
+        setTotal(cached.total ?? 0);
+        return;
+      }
+
       const res = await fetch(`/api/logs?limit=${limit}&offset=${page * limit}`, {
         headers: getAuthHeaders(),
         credentials: 'include',
       });
       const data = await res.json();
       if (data.success) {
+        writeSessionCache(cacheKey, data);
         // Enrich logs with key names from cache (synchronous lookup)
         const enrichedLogs = data.logs.map((log: any) => {
           if (log.metadata?.apiKeyId) {
@@ -360,7 +437,8 @@ function EmailLogsPanel({ showConfirm }: { showConfirm: (message: string, onConf
         });
         const data = await res.json();
         if (data.success) {
-          fetchLogs();
+          clearSessionCacheByPrefix('/api/logs?');
+          fetchLogs({ force: true });
         }
       } catch (error) {
         console.error('Failed to delete log:', error);
@@ -382,7 +460,8 @@ function EmailLogsPanel({ showConfirm }: { showConfirm: (message: string, onConf
           });
         }
         setSelectedLogs(new Set());
-        fetchLogs();
+        clearSessionCacheByPrefix('/api/logs?');
+        fetchLogs({ force: true });
       } catch (error) {
         console.error('Failed to delete logs:', error);
       }
@@ -422,22 +501,22 @@ function EmailLogsPanel({ showConfirm }: { showConfirm: (message: string, onConf
           {selectedLogs.size > 0 && (
             <button
               onClick={deleteSelectedLogs}
-              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm transition-colors flex items-center gap-2"
+              className="bg-red-600 hover:bg-red-700 text-white font-medium px-4 py-2 rounded-lg text-sm transition-colors flex items-center gap-2"
             >
               <Trash2 size={16} />
               Delete {selectedLogs.size}
             </button>
           )}
           <button
-            onClick={fetchLogs}
-            className="bg-brand-primary text-white px-4 py-2 rounded-lg text-sm hover:bg-brand-accent transition-colors"
+            onClick={() => fetchLogs()}
+            className="gradient-button text-white px-4 py-2 rounded-lg text-sm font-medium"
           >
             Refresh
           </button>
         </div>
       </div>
 
-      <div className="bg-brand-accent/40 border border-brand-accent/50 rounded-xl shadow overflow-hidden">
+      <div className="bg-[#1a1a1a] rounded-xl shadow overflow-hidden">
         {loading ? (
           <div className="p-8 text-center text-foreground/60">Loading...</div>
         ) : logs.length === 0 ? (
@@ -446,7 +525,7 @@ function EmailLogsPanel({ showConfirm }: { showConfirm: (message: string, onConf
           <>
             {/* Top Pagination */}
             {(totalPages > 1 || total > 0) && (
-              <div className="bg-brand-accent border-b border-brand-accent px-6 py-4 space-y-4">
+              <div className="bg-[#141414] border-b /20 px-6 py-4 space-y-4">
                 {/* Results Info and Page Size */}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                   <div className="text-sm text-foreground/70">
@@ -461,7 +540,7 @@ function EmailLogsPanel({ showConfirm }: { showConfirm: (message: string, onConf
                         setLimit(Number(e.target.value));
                         setPage(0);
                       }}
-                      className="px-2 py-1 rounded border border-brand-accent/50 bg-brand-accent/60 text-foreground text-sm focus:ring-2 focus:ring-brand-primary"
+                      className="px-2 py-1.5 rounded-lg bg-[#141414] text-foreground text-sm focus:ring-2 focus:ring-[#0000C0]"
                     >
                       <option value={10}>10</option>
                       <option value={20}>20</option>
@@ -477,7 +556,7 @@ function EmailLogsPanel({ showConfirm }: { showConfirm: (message: string, onConf
                     <button
                       onClick={() => setPage(0)}
                       disabled={page === 0}
-                      className="px-3 py-1 rounded border border-brand-accent/50 text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-brand-accent/50 transition-colors"
+                      className="px-3 py-1.5 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#0000C0]/10 transition-colors"
                       title="First page"
                     >
                       ⟨⟨
@@ -487,10 +566,10 @@ function EmailLogsPanel({ showConfirm }: { showConfirm: (message: string, onConf
                         <button
                           key={i}
                           onClick={() => setPage(i)}
-                          className={`w-8 h-8 rounded border text-sm font-medium transition-colors ${
+                          className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
                             page === i
-                              ? 'bg-foreground text-brand-primary border-foreground'
-                              : 'bg-brand-primary border-brand-accent text-foreground hover:bg-brand-accent'
+                              ? 'bg-[#0000C0] text-white '
+                              : '/40 text-foreground hover:bg-[#0000C0]/10'
                           }`}
                         >
                           {i + 1}
@@ -500,7 +579,7 @@ function EmailLogsPanel({ showConfirm }: { showConfirm: (message: string, onConf
                     <button
                       onClick={() => setPage(totalPages - 1)}
                       disabled={page >= totalPages - 1}
-                      className="px-3 py-1 rounded border border-brand-accent/50 text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-brand-accent/50 transition-colors"
+                      className="px-3 py-1.5 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#0000C0]/10 transition-colors"
                       title="Last page"
                     >
                       ⟩⟩
@@ -517,7 +596,7 @@ function EmailLogsPanel({ showConfirm }: { showConfirm: (message: string, onConf
             {/* Table */}
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-brand-accent border-b border-brand-accent">
+                <thead className="bg-[#141414] border-b /20">
                   <tr>
                     <th className="px-6 py-3 text-center">
                       <div className="flex justify-center items-center">
@@ -555,10 +634,10 @@ function EmailLogsPanel({ showConfirm }: { showConfirm: (message: string, onConf
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-brand-accent/30">
+                <tbody className="divide-y divide-[#0000C0]/10">
                   {logs.map((log) => (
                     <Fragment key={log._id}>
-                      <tr className="hover:bg-brand-accent/20">
+                      <tr className="hover:bg-[#0000C0]/10">
                         <td className="px-6 py-2 whitespace-nowrap text-center">
                           <div className="flex justify-center items-center">
                             <input
@@ -604,14 +683,14 @@ function EmailLogsPanel({ showConfirm }: { showConfirm: (message: string, onConf
                               }
                               setExpandedLogs(newExpanded);
                             }}
-                            className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded transition-colors"
+                            className="bg-[#0000C0] hover:bg-[#0000C0]/80 text-white p-2 rounded-lg transition-colors"
                             title={expandedLogs.has(log._id) ? 'Hide details' : 'Show details'}
                           >
                             <Info size={16} />
                           </button>
                           <button
                             onClick={() => deleteLog(log._id)}
-                            className="bg-red-600 hover:bg-red-700 text-white p-2 rounded transition-colors"
+                            className="bg-red-600 hover:bg-red-700 text-white p-2 rounded-lg transition-colors"
                             title="Delete log"
                           >
                             <Trash2 size={16} />
@@ -619,7 +698,7 @@ function EmailLogsPanel({ showConfirm }: { showConfirm: (message: string, onConf
                         </td>
                       </tr>
                       {expandedLogs.has(log._id) && (
-                        <tr className="bg-brand-accent/30">
+                        <tr className="bg-[#141414]/60">
                           <td colSpan={7} className="px-6 py-4">
                             <div className="space-y-3">
                               <div className="grid grid-cols-2 gap-4 text-sm">
@@ -696,7 +775,7 @@ function EmailLogsPanel({ showConfirm }: { showConfirm: (message: string, onConf
 
             {/* Bottom Pagination */}
             {(totalPages > 1 || total > 0) && (
-              <div className="bg-brand-accent/60 border-t border-brand-accent/50 px-6 py-4 space-y-4">
+              <div className="bg-[#141414] border-t /20 px-6 py-4 space-y-4">
                 {/* Results Info and Page Size */}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                   <div className="text-sm text-foreground/70">
@@ -711,7 +790,7 @@ function EmailLogsPanel({ showConfirm }: { showConfirm: (message: string, onConf
                         setLimit(Number(e.target.value));
                         setPage(0);
                       }}
-                      className="px-2 py-1 rounded border border-brand-accent/50 bg-brand-accent/60 text-foreground text-sm focus:ring-2 focus:ring-brand-primary"
+                      className="px-2 py-1.5 rounded-lg bg-[#141414] text-foreground text-sm focus:ring-2 focus:ring-[#0000C0]"
                     >
                       <option value={10}>10</option>
                       <option value={20}>20</option>
@@ -727,7 +806,7 @@ function EmailLogsPanel({ showConfirm }: { showConfirm: (message: string, onConf
                     <button
                       onClick={() => setPage(0)}
                       disabled={page === 0}
-                      className="px-3 py-1 rounded border border-brand-accent/50 text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-brand-accent/50 transition-colors"
+                      className="px-3 py-1.5 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#0000C0]/10 transition-colors"
                       title="First page"
                     >
                       ⟨⟨
@@ -737,10 +816,10 @@ function EmailLogsPanel({ showConfirm }: { showConfirm: (message: string, onConf
                         <button
                           key={i}
                           onClick={() => setPage(i)}
-                          className={`w-8 h-8 rounded border text-sm font-medium transition-colors ${
+                          className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
                             page === i
-                              ? 'bg-foreground text-brand-primary border-foreground'
-                              : 'bg-brand-primary border-brand-accent text-foreground hover:bg-brand-accent'
+                              ? 'bg-[#0000C0] text-white '
+                              : '/40 text-foreground hover:bg-[#0000C0]/10'
                           }`}
                         >
                           {i + 1}
@@ -750,7 +829,7 @@ function EmailLogsPanel({ showConfirm }: { showConfirm: (message: string, onConf
                     <button
                       onClick={() => setPage(totalPages - 1)}
                       disabled={page >= totalPages - 1}
-                      className="px-3 py-1 rounded border border-brand-accent/50 text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-brand-accent/50 transition-colors"
+                      className="px-3 py-1.5 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#0000C0]/10 transition-colors"
                       title="Last page"
                     >
                       ⟩⟩
@@ -786,15 +865,23 @@ function ApiKeysPanel({ showConfirm }: { showConfirm: (message: string, onConfir
     fetchApiKeys();
   }, []);
 
-  async function fetchApiKeys() {
+  async function fetchApiKeys({ force = false }: { force?: boolean } = {}) {
     setLoading(true);
     try {
+      const cacheKey = '/api/api-keys';
+      const cached = readSessionCache<{ success: boolean; apiKeys?: any[] }>(cacheKey);
+      if (cached?.success && cached.apiKeys && !force) {
+        setApiKeys(cached.apiKeys);
+        return;
+      }
+
       const res = await fetch('/api/api-keys', {
         headers: getAuthHeaders(),
         credentials: 'include',
       });
       const data = await res.json();
       if (data.success) {
+        writeSessionCache(cacheKey, data);
         setApiKeys(data.apiKeys);
       }
     } catch (error) {
@@ -821,7 +908,8 @@ function ApiKeysPanel({ showConfirm }: { showConfirm: (message: string, onConfir
       if (data.success) {
         setNewlyCreatedKey(data.apiKey.key);
         setKeyName('');
-        fetchApiKeys();
+        clearSessionCacheByPrefix('/api/api-keys');
+        fetchApiKeys({ force: true });
       } else {
         setFormError(data.message);
       }
@@ -846,7 +934,8 @@ function ApiKeysPanel({ showConfirm }: { showConfirm: (message: string, onConfir
       });
       const data = await res.json();
       if (data.success) {
-        fetchApiKeys();
+        clearSessionCacheByPrefix('/api/api-keys');
+        fetchApiKeys({ force: true });
       }
     } catch (error) {
       console.error('Failed to toggle key status:', error);
@@ -864,7 +953,8 @@ function ApiKeysPanel({ showConfirm }: { showConfirm: (message: string, onConfir
         });
         const data = await res.json();
         if (data.success) {
-          fetchApiKeys();
+          clearSessionCacheByPrefix('/api/api-keys');
+          fetchApiKeys({ force: true });
         }
       } catch (error) {
         console.error('Failed to delete key:', error);
@@ -884,7 +974,8 @@ function ApiKeysPanel({ showConfirm }: { showConfirm: (message: string, onConfir
         const data = await res.json();
         if (data.success && data.apiKey?.key) {
           setNewlyCreatedKey(data.apiKey.key);
-          fetchApiKeys();
+          clearSessionCacheByPrefix('/api/api-keys');
+          fetchApiKeys({ force: true });
         }
       } catch (error) {
         console.error('Failed to rotate key:', error);
@@ -904,7 +995,8 @@ function ApiKeysPanel({ showConfirm }: { showConfirm: (message: string, onConfir
       if (data.success) {
         setEditingKey(null);
         setEditName('');
-        fetchApiKeys();
+        clearSessionCacheByPrefix('/api/api-keys');
+        fetchApiKeys({ force: true });
       }
     } catch (error) {
       console.error('Failed to rename key:', error);
@@ -927,7 +1019,7 @@ function ApiKeysPanel({ showConfirm }: { showConfirm: (message: string, onConfir
         <h2 className="text-2xl font-bold text-foreground">API Keys</h2>
         <button
           onClick={() => { setShowForm(!showForm); setNewlyCreatedKey(null); }}
-          className="bg-brand-primary text-white px-4 py-2 rounded-lg text-sm hover:bg-brand-accent transition-colors"
+          className="gradient-button text-white font-medium px-4 py-2 rounded-lg text-sm"
         >
           {showForm ? 'Cancel' : 'Generate New Key'}
         </button>
@@ -935,20 +1027,20 @@ function ApiKeysPanel({ showConfirm }: { showConfirm: (message: string, onConfir
 
       {/* Newly Created Key Alert */}
       {newlyCreatedKey && (
-        <div className="bg-green-900/30 border border-green-800 rounded-xl p-4">
-          <h4 className="font-semibold text-green-400 mb-2">
+        <div className="bg-[#0a3a0a]/40 border border-emerald-700/50 rounded-xl p-4">
+          <h4 className="font-semibold text-emerald-400 mb-2">
             🔑 API Key Created Successfully!
           </h4>
-          <p className="text-sm text-green-400/80 mb-3">
+          <p className="text-sm text-emerald-400/80 mb-3">
             Copy this key now. You won&apos;t be able to see it again.
           </p>
           <div className="flex items-center gap-2">
-            <code className="flex-1 bg-brand-accent/60 border border-brand-accent/70 px-3 py-2 rounded text-sm font-mono break-all text-foreground">
+            <code className="flex-1 bg-[#141414] px-3 py-2 rounded text-sm font-mono break-all text-foreground">
               {newlyCreatedKey}
             </code>
             <button
               onClick={() => copyToClipboard(newlyCreatedKey)}
-              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm transition-colors whitespace-nowrap"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-4 py-2 rounded-lg text-sm transition-colors whitespace-nowrap"
             >
               {copied ? 'Copied!' : 'Copy'}
             </button>
@@ -958,7 +1050,7 @@ function ApiKeysPanel({ showConfirm }: { showConfirm: (message: string, onConfir
 
       {/* Create Form */}
       {showForm && !newlyCreatedKey && (
-        <div className="bg-brand-accent/40 border border-brand-accent/50 rounded-xl shadow p-6">
+        <div className="bg-[#1a1a1a] rounded-xl shadow p-6">
           <h3 className="text-lg font-semibold mb-4 text-foreground">Generate New API Key</h3>
           <form onSubmit={handleCreateKey} className="space-y-4">
             <div>
@@ -969,7 +1061,7 @@ function ApiKeysPanel({ showConfirm }: { showConfirm: (message: string, onConfir
                 type="text"
                 value={keyName}
                 onChange={(e) => setKeyName(e.target.value)}
-                className="w-full px-4 py-2 rounded-lg border border-brand-accent/50 bg-brand-accent/60 text-foreground focus:ring-2 focus:ring-brand-primary placeholder-foreground/40"
+                className="w-full px-4 py-2 rounded-lg border /40 bg-[#141414] text-foreground focus:ring-2 focus:ring-[#0000C0] placeholder-foreground/40 transition-all"
                 placeholder="e.g., Production, My App, Testing"
                 required
               />
@@ -984,7 +1076,7 @@ function ApiKeysPanel({ showConfirm }: { showConfirm: (message: string, onConfir
             )}
             <button
               type="submit"
-              className="bg-brand-primary text-white px-6 py-2 rounded-lg hover:bg-brand-primary/80 transition-colors"
+              className="gradient-button text-white font-medium px-6 py-2 rounded-lg"
             >
               Generate Key
             </button>
@@ -993,7 +1085,7 @@ function ApiKeysPanel({ showConfirm }: { showConfirm: (message: string, onConfir
       )}
 
       {/* Keys List */}
-      <div className="bg-brand-accent/40 border border-brand-accent/50 rounded-xl shadow overflow-hidden">
+      <div className="bg-[#1a1a1a] rounded-xl shadow overflow-hidden">
         {loading ? (
           <div className="p-8 text-center text-foreground/60">Loading...</div>
         ) : apiKeys.length === 0 ? (
@@ -1004,7 +1096,7 @@ function ApiKeysPanel({ showConfirm }: { showConfirm: (message: string, onConfir
         ) : (
           <div className="divide-y divide-brand-accent/30">
             {apiKeys.map((key) => (
-              <div key={key._id} className="p-6 flex items-center justify-between hover:bg-brand-accent/50">
+              <div key={key._id} className="p-6 flex items-center justify-between hover:bg-[#0000C0]/10 transition-colors">
                 <div className="flex-1">
                   {editingKey === key._id ? (
                     <div className="flex items-center space-x-2">
@@ -1012,7 +1104,7 @@ function ApiKeysPanel({ showConfirm }: { showConfirm: (message: string, onConfir
                         type="text"
                         value={editName}
                         onChange={(e) => setEditName(e.target.value)}
-                        className="px-3 py-1.5 rounded-lg border border-brand-accent/50 bg-brand-accent/60 text-foreground focus:ring-2 focus:ring-brand-primary text-sm placeholder-foreground/40"
+                        className="px-3 py-1.5 rounded-lg border /40 bg-[#141414] text-foreground focus:ring-2 focus:ring-[#0000C0] text-sm placeholder-foreground/40 transition-all"
                         placeholder="Key name"
                         autoFocus
                         onKeyDown={(e) => {
@@ -1025,13 +1117,13 @@ function ApiKeysPanel({ showConfirm }: { showConfirm: (message: string, onConfir
                       />
                       <button
                         onClick={() => editName.trim() && renameKey(key._id, editName.trim())}
-                        className="px-2 py-1 text-sm text-green-400 hover:bg-green-900/30 rounded"
+                        className="px-3 py-1.5 text-sm font-medium text-emerald-400 hover:bg-emerald-900/20 rounded-lg transition-colors"
                       >
                         Save
                       </button>
                       <button
                         onClick={cancelEditing}
-                        className="px-2 py-1 text-sm text-foreground/60 hover:bg-brand-accent/50 rounded"
+                        className="px-2 py-1.5 text-sm text-foreground/60 hover:bg-[#0000C0]/10 rounded transition-colors"
                       >
                         Cancel
                       </button>
@@ -1049,10 +1141,10 @@ function ApiKeysPanel({ showConfirm }: { showConfirm: (message: string, onConfir
                         </svg>
                       </button>
                       <span
-                        className={`px-2 py-0.5 text-xs rounded-full border ${
+                        className={`px-2 py-0.5 text-xs rounded-full font-medium ${
                           key.isActive
-                            ? 'bg-green-900/30 text-green-400 border-green-800'
-                            : 'bg-gray-800/30 text-foreground/80 border-gray-700'
+                            ? 'bg-emerald-600/30 text-emerald-300'
+                            : 'bg-gray-700/30 text-foreground/60'
                         }`}
                       >
                         {key.isActive ? 'Active' : 'Inactive'}
@@ -1073,20 +1165,20 @@ function ApiKeysPanel({ showConfirm }: { showConfirm: (message: string, onConfir
                 <div className="flex space-x-2">
                   <button
                     onClick={() => toggleKeyStatus(key._id)}
-                    className="px-3 py-1 text-sm border border-brand-accent/50 rounded hover:bg-brand-accent/50 transition-colors"
+                    className="px-4 py-2 text-sm font-medium text-foreground hover:bg-[#0000C0]/10 rounded-lg transition-colors"
                   >
                     {key.isActive ? 'Disable' : 'Enable'}
                   </button>
                   <button
                     onClick={() => rotateKey(key._id, key.name)}
-                    className="px-3 py-1 text-sm text-yellow-400 border border-yellow-800 rounded hover:bg-yellow-900/30 transition-colors"
+                    className="px-4 py-2 text-sm font-medium text-yellow-400 hover:bg-yellow-900/20 rounded-lg transition-colors"
                     title="Generate a new API key (old one will stop working)"
                   >
                     Rotate
                   </button>
                   <button
                     onClick={() => deleteKey(key._id)}
-                    className="px-3 py-1 text-sm text-red-400 border border-red-800 rounded hover:bg-red-900/30 transition-colors"
+                    className="px-4 py-2 text-sm font-medium text-red-400 hover:bg-red-900/20 rounded-lg transition-colors"
                   >
                     Delete
                   </button>
@@ -1108,11 +1200,11 @@ function StatusPanel() {
 
   useEffect(() => {
     fetchStatus();
-    const interval = setInterval(fetchStatus, 30000); // Refresh every 30s
+    const interval = setInterval(() => fetchStatus({ force: true }), 30000); // Refresh every 30s
     return () => clearInterval(interval);
   }, [timeInterval, customDays]);
 
-  async function fetchStatus() {
+  async function fetchStatus({ force = false }: { force?: boolean } = {}) {
     try {
       let hours = 24;
       if (timeInterval === '1h') hours = 1;
@@ -1122,11 +1214,24 @@ function StatusPanel() {
       else if (timeInterval === '90d') hours = 2160;
       else if (timeInterval === 'custom') hours = customDays * 24;
 
+      const cacheKey = `/api/status?hours=${hours}`;
+      const cached = readSessionCache<any>(cacheKey);
+      if (cached && !force) {
+        setStatus(cached);
+        setLoading(false);
+        return;
+      }
+
+      if (cached && force) {
+        setStatus(cached);
+      }
+
       const res = await fetch(`/api/status?hours=${hours}`, {
         headers: getAuthHeaders(),
         credentials: 'include',
       });
       const data = await res.json();
+      writeSessionCache(cacheKey, data);
       setStatus(data);
     } catch (error) {
       console.error('Failed to fetch status:', error);
@@ -1145,7 +1250,7 @@ function StatusPanel() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Health Status */}
-        <div className="bg-brand-accent rounded-xl shadow p-6 hover:border-brand-primary/60 transition-colors">
+        <div className="bg-[#1a1a1a] rounded-xl shadow p-6 hover:/40 transition-colors">
           <h3 className="text-sm font-medium text-foreground/80 uppercase tracking-wider mb-2">
             System Health
           </h3>
@@ -1162,7 +1267,7 @@ function StatusPanel() {
         </div>
 
         {/* Total Emails (All Time) */}
-        <div className="bg-brand-accent rounded-xl shadow p-6 hover:border-brand-primary/60 transition-colors">
+        <div className="bg-[#1a1a1a] rounded-xl shadow p-6 hover:/40 transition-colors">
           <h3 className="text-sm font-medium text-foreground/80 uppercase tracking-wider mb-2">
             Emails Sent
           </h3>
@@ -1172,7 +1277,7 @@ function StatusPanel() {
         </div>
       </div>
 
-      <div className="bg-brand-accent rounded-xl shadow p-6">
+      <div className="bg-[#1a1a1a] rounded-xl shadow p-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <div>
             <h3 className="text-lg font-semibold text-foreground">Deliverability Stats</h3>
@@ -1188,10 +1293,10 @@ function StatusPanel() {
               <button
                 key={interval}
                 onClick={() => setTimeInterval(interval)}
-                className={`px-3 py-1 rounded border text-xs font-medium transition-colors ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                   timeInterval === interval
-                    ? 'bg-brand-primary text-white border-brand-primary'
-                    : 'border-brand-primary/50 text-foreground hover:bg-brand-primary/30'
+                    ? 'bg-[#0000C0] text-white'
+                    : 'text-foreground hover:bg-[#0000C0]/10'
                 }`}
               >
                 {interval === '1h' && '1h'}
@@ -1203,10 +1308,10 @@ function StatusPanel() {
             ))}
             <button
               onClick={() => setTimeInterval('custom')}
-              className={`px-3 py-1 rounded border text-xs font-medium transition-colors ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                 timeInterval === 'custom'
-                  ? 'bg-brand-primary text-white border-brand-primary'
-                  : 'border-brand-primary/50 text-foreground hover:bg-brand-primary/30'
+                  ? 'bg-[#0000C0] text-white'
+                  : 'text-foreground hover:bg-[#0000C0]/10'
               }`}
             >
               Custom
@@ -1216,7 +1321,7 @@ function StatusPanel() {
 
         {/* Custom Days Input */}
         {timeInterval === 'custom' && (
-          <div className="mb-6 p-4 bg-brand-accent/50 rounded-lg border border-brand-primary/30">
+          <div className="mb-6 p-4 bg-[#141414] rounded-lg">
             <div className="flex items-center gap-3">
               <label htmlFor="customDays" className="text-sm font-medium text-foreground/80">
                 Days:
@@ -1231,11 +1336,11 @@ function StatusPanel() {
                   const val = Math.max(1, Math.floor(Number(e.target.value) || 1));
                   setCustomDays(val);
                 }}
-                className="w-24 px-3 py-2 rounded border border-brand-primary/50 bg-background text-foreground focus:ring-2 focus:ring-brand-primary outline-none text-sm"
+                className="w-24 px-3 py-2 rounded-lg bg-[#0a0a0a] text-foreground focus:ring-2 focus:ring-[#0000C0] outline-none text-sm transition-all"
               />
               <button
                 onClick={() => setCustomDays(7)}
-                className="px-3 py-2 rounded border border-brand-primary/50 text-sm text-foreground/80 hover:bg-brand-primary/20"
+                className="px-4 py-2 rounded-lg text-sm font-medium text-foreground/80 hover:bg-[#0000C0]/10 transition-colors"
               >
                 Reset
               </button>
@@ -1245,7 +1350,7 @@ function StatusPanel() {
 
         {status?.deliverability?.timeSeries && status.deliverability.timeSeries.length > 0 ? (
           <div className="grid grid-cols-3 gap-4">
-            <div className="bg-brand-accent  rounded-lg p-3">
+            <div className="bg-[#141414]  rounded-lg p-3">
               <div className="text-xs text-foreground/70 uppercase tracking-wider mb-1">Total</div>
               <div className="text-xl font-bold text-foreground">{status.deliverability.period.total}</div>
             </div>
@@ -1266,18 +1371,18 @@ function StatusPanel() {
       </div>
 
       {/* Rate Limit Status */}
-      <div className="bg-brand-accent rounded-xl shadow p-6">
+      <div className="bg-[#1a1a1a] rounded-xl shadow p-6">
         <h3 className="text-lg font-semibold text-foreground mb-4">Provider Rate Limits</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* NotificationAPI */}
-          <div className=" rounded-lg p-4 bg-brand-accent">
-            <div className="flex items-center justify-between mb-2">
+          <div className="bg-[#141414] rounded-lg py-4 px-8">
+            <div className="flex items-center justify-between">
               <h4 className="font-medium text-foreground">NotificationAPI</h4>
               <span
-                className={`px-2 py-1 text-xs rounded-full font-semibold ${
+                className={`px-3 py-1.5 text-xs rounded-full font-semibold ${
                   status?.rateLimits?.notificationapi?.isLimited
-                    ? 'bg-red-600/30 text-red-200'
-                    : 'bg-emerald-600/30 text-emerald-200'
+                    ? 'bg-red-600/30 text-red-300'
+                    : 'bg-emerald-600/30 text-emerald-300'
                 }`}
               >
                 {status?.rateLimits?.notificationapi?.isLimited ? 'Rate Limited' : 'Available'}
@@ -1292,14 +1397,14 @@ function StatusPanel() {
           </div>
 
           {/* Brevo */}
-          <div className=" rounded-lg p-4 bg-brand-accent">
-            <div className="flex items-center justify-between mb-2">
+          <div className="bg-[#141414] rounded-lg py-4 px-8">
+            <div className="flex items-center justify-between">
               <h4 className="font-medium text-foreground">Brevo</h4>
               <span
-                className={`px-2 py-1 text-xs rounded-full font-semibold ${
+                className={`px-3 py-1.5 text-xs rounded-full font-semibold ${
                   status?.rateLimits?.brevo?.isLimited
-                    ? 'bg-red-600/30 text-red-200'
-                    : 'bg-emerald-600/30 text-emerald-200'
+                    ? 'bg-red-600/30 text-red-300'
+                    : 'bg-emerald-600/30 text-emerald-300'
                 }`}
               >
                 {status?.rateLimits?.brevo?.isLimited ? 'Rate Limited' : 'Available'}
@@ -1317,8 +1422,8 @@ function StatusPanel() {
 
       <div className="text-center">
         <button
-          onClick={fetchStatus}
-          className="bg-brand-primary text-white px-6 py-2 rounded-lg hover:bg-brand-primary/80 transition-colors"
+          onClick={() => fetchStatus()}
+          className="gradient-button text-white font-medium px-6 py-2 rounded-lg"
         >
           Refresh Status
         </button>
@@ -1387,12 +1492,12 @@ function DocsPanel() {
       {/* API Documentation */}
       <section>
         <h2 className="text-2xl font-bold text-foreground mb-4">API Documentation</h2>
-        <div className="bg-brand-accent/40 border border-brand-accent/50 rounded-xl shadow p-6 space-y-6">
+        <div className="bg-[#1a1a1a] rounded-xl shadow p-6 space-y-6">
           {/* Endpoint Overview */}
           <div>
             <h3 className="text-lg font-semibold text-foreground mb-3">Send Email Endpoint</h3>
-            <div className="bg-brand-accent/60 rounded-lg p-4 font-mono text-sm text-foreground mb-4 overflow-x-auto">
-              <div className="text-brand-primary font-bold">POST</div>
+            <div className="bg-[#141414] rounded-lg p-4 font-mono text-sm text-foreground mb-4 overflow-x-auto">
+              <div className="text-[#0000C0] font-bold">POST</div>
               <div className="text-foreground/80">{typeof window !== 'undefined' ? window.location.origin : ''}/api/send-mail</div>
             </div>
 
@@ -1400,7 +1505,7 @@ function DocsPanel() {
             <p className="text-foreground/80 text-sm mb-3">
               Include your API key in the Authorization header using the Bearer scheme:
             </p>
-            <div className="bg-brand-accent/60 rounded-lg p-4 font-mono text-sm text-foreground overflow-x-auto">
+            <div className="bg-[#141414] rounded-lg p-4 font-mono text-sm text-foreground overflow-x-auto">
               Authorization: Bearer &lt;your-api-key&gt;
             </div>
           </div>
@@ -1409,7 +1514,7 @@ function DocsPanel() {
           <div>
             <h4 className="font-semibold text-foreground mb-2">Request Body</h4>
             <p className="text-foreground/80 text-sm mb-3">JSON payload with the following fields:</p>
-            <div className="bg-brand-accent/60 rounded-lg p-4 font-mono text-xs text-foreground overflow-x-auto">
+            <div className="bg-[#141414] rounded-lg p-4 font-mono text-xs text-foreground overflow-x-auto">
               <pre>{`{
   "to": "recipient@example.com",
   "subject": "Email Subject",
@@ -1421,23 +1526,23 @@ function DocsPanel() {
 
             <div className="mt-4 space-y-3">
               <div>
-                <span className="font-mono text-sm text-brand-primary">to</span>
+                <span className="font-mono text-sm text-[#0000C0]">to</span>
                 <span className="text-sm text-foreground/80"> (required): Recipient email address</span>
               </div>
               <div>
-                <span className="font-mono text-sm text-brand-primary">subject</span>
+                <span className="font-mono text-sm text-[#0000C0]">subject</span>
                 <span className="text-sm text-foreground/80"> (required): Email subject line</span>
               </div>
               <div>
-                <span className="font-mono text-sm text-brand-primary">html</span>
+                <span className="font-mono text-sm text-[#0000C0]">html</span>
                 <span className="text-sm text-foreground/80"> (required): Email body in HTML format</span>
               </div>
               <div>
-                <span className="font-mono text-sm text-brand-primary">senderName</span>
+                <span className="font-mono text-sm text-[#0000C0]">senderName</span>
                 <span className="text-sm text-foreground/80"> (optional): Display name of sender</span>
               </div>
               <div>
-                <span className="font-mono text-sm text-brand-primary">senderEmail</span>
+                <span className="font-mono text-sm text-[#0000C0]">senderEmail</span>
                 <span className="text-sm text-foreground/80"> (optional): Email address to send from</span>
               </div>
             </div>
@@ -1446,7 +1551,7 @@ function DocsPanel() {
           {/* Example cURL */}
           <div>
             <h4 className="font-semibold text-foreground mb-2">Example Request (cURL)</h4>
-            <div className="bg-brand-accent/60 rounded-lg p-4 font-mono text-xs text-foreground overflow-x-auto">
+            <div className="bg-[#141414] rounded-lg p-4 font-mono text-xs text-foreground overflow-x-auto">
               <pre>{`curl -X POST https://your-domain.com/api/send-mail \\
   -H "Content-Type: application/json" \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
@@ -1464,14 +1569,14 @@ function DocsPanel() {
           <div>
             <h4 className="font-semibold text-foreground mb-2">Response</h4>
             <p className="text-foreground/80 text-sm mb-3">On success:</p>
-            <div className="bg-brand-accent/60 rounded-lg p-4 font-mono text-xs text-foreground overflow-x-auto mb-3">
+            <div className="bg-[#141414] rounded-lg p-4 font-mono text-xs text-foreground overflow-x-auto mb-3">
               <pre>{`{
   "success": true,
   "message": "Email sent successfully"
 }`}</pre>
             </div>
             <p className="text-foreground/80 text-sm mb-3">On error:</p>
-            <div className="bg-brand-accent/60 rounded-lg p-4 font-mono text-xs text-foreground overflow-x-auto">
+            <div className="bg-[#141414] rounded-lg p-4 font-mono text-xs text-foreground overflow-x-auto">
               <pre>{`{
   "success": false,
   "message": "Error description"
@@ -1484,12 +1589,12 @@ function DocsPanel() {
       {/* Test Email Form */}
       <section>
         <h2 className="text-2xl font-bold text-foreground mb-4">Test Email</h2>
-        <div className="bg-brand-accent/40 border border-brand-accent/50 rounded-xl shadow p-6">
+        <div className="bg-[#1a1a1a] rounded-xl shadow p-6">
           <p className="text-foreground/80 text-sm mb-4">
             Send a test email to verify your setup is working correctly.
           </p>
           
-          <div className="bg-brand-accent/20 border border-brand-accent/30 rounded-lg p-4 mb-6">
+          <div className="bg-[#141414] rounded-lg p-4 mb-6">
             <h3 className="text-sm font-semibold text-foreground mb-2">How to use:</h3>
             <ul className="text-xs text-foreground/70 space-y-1">
               <li>• <strong>API Key:</strong> Paste an active API key (only for testing, not included in request)</li>
@@ -1512,7 +1617,7 @@ function DocsPanel() {
                 <button
                   type="button"
                   onClick={() => setShowApiKeyInput(!showApiKeyInput)}
-                  className="text-xs text-foreground/60 hover:text-brand-primary"
+                  className="text-xs font-medium text-foreground/60 hover:text-[#0000C0] transition-colors"
                 >
                   {showApiKeyInput ? 'Hide' : 'Show'}
                 </button>
@@ -1522,7 +1627,7 @@ function DocsPanel() {
                 id="apiKey"
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
-                className="w-full px-4 py-2 rounded-lg border border-brand-accent/50 bg-brand-accent/60 text-foreground focus:ring-2 focus:ring-brand-primary placeholder-foreground/40 text-sm"
+                className="w-full px-4 py-2 rounded-lg border /40 bg-[#141414] text-foreground focus:ring-2 focus:ring-[#0000C0] placeholder-foreground/40 text-sm transition-all"
                 placeholder="Enter your API key"
                 required
               />
@@ -1538,7 +1643,7 @@ function DocsPanel() {
                 id="senderName"
                 value={testSenderName}
                 onChange={(e) => setTestSenderName(e.target.value)}
-                className="w-full px-4 py-2 rounded-lg border border-brand-accent/50 bg-brand-accent/60 text-foreground focus:ring-2 focus:ring-brand-primary placeholder-foreground/40 text-sm"
+                className="w-full px-4 py-2 rounded-lg border /40 bg-[#141414] text-foreground focus:ring-2 focus:ring-[#0000C0] placeholder-foreground/40 text-sm transition-all"
                 placeholder="Your App Name"
                 required
               />
@@ -1554,7 +1659,7 @@ function DocsPanel() {
                 id="senderEmail"
                 value={testSenderEmail}
                 onChange={(e) => setTestSenderEmail(e.target.value)}
-                className="w-full px-4 py-2 rounded-lg border border-brand-accent/50 bg-brand-accent/60 text-foreground focus:ring-2 focus:ring-brand-primary placeholder-foreground/40 text-sm"
+                className="w-full px-4 py-2 rounded-lg border /40 bg-[#141414] text-foreground focus:ring-2 focus:ring-[#0000C0] placeholder-foreground/40 text-sm transition-all"
                 placeholder="noreply@example.com"
                 required
               />
@@ -1570,7 +1675,7 @@ function DocsPanel() {
                 id="testEmail"
                 value={testEmail}
                 onChange={(e) => setTestEmail(e.target.value)}
-                className="w-full px-4 py-2 rounded-lg border border-brand-accent/50 bg-brand-accent/60 text-foreground focus:ring-2 focus:ring-brand-primary placeholder-foreground/40 text-sm"
+                className="w-full px-4 py-2 rounded-lg border /40 bg-[#141414] text-foreground focus:ring-2 focus:ring-[#0000C0] placeholder-foreground/40 text-sm transition-all"
                 placeholder="recipient@example.com"
                 required
               />
@@ -1586,7 +1691,7 @@ function DocsPanel() {
                 id="testSubject"
                 value={testSubject}
                 onChange={(e) => setTestSubject(e.target.value)}
-                className="w-full px-4 py-2 rounded-lg border border-brand-accent/50 bg-brand-accent/60 text-foreground focus:ring-2 focus:ring-brand-primary placeholder-foreground/40 text-sm"
+                className="w-full px-4 py-2 rounded-lg border /40 bg-[#141414] text-foreground focus:ring-2 focus:ring-[#0000C0] placeholder-foreground/40 text-sm transition-all"
                 placeholder="Email subject"
                 required
               />
@@ -1601,7 +1706,7 @@ function DocsPanel() {
                 id="testBody"
                 value={testBody}
                 onChange={(e) => setTestBody(e.target.value)}
-                className="w-full px-4 py-2 rounded-lg border border-brand-accent/50 bg-brand-accent/60 text-foreground focus:ring-2 focus:ring-brand-primary placeholder-foreground/40 text-sm h-32 resize-none"
+                className="w-full px-4 py-2 rounded-lg border /40 bg-[#141414] text-foreground focus:ring-2 focus:ring-[#0000C0] placeholder-foreground/40 text-sm h-32 resize-none transition-all"
                 placeholder="Email body text"
                 required
               />
@@ -1624,7 +1729,7 @@ function DocsPanel() {
             <button
               type="submit"
               disabled={testLoading}
-              className="w-full bg-brand-primary hover:bg-brand-primary/80 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full gradient-button text-white font-semibold py-3 px-4 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {testLoading ? 'Sending...' : 'Send Test Email'}
             </button>

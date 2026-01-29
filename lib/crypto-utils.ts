@@ -5,7 +5,11 @@ import { createHash, createHmac } from 'crypto';
  * Falls back to a default if not set (should be configured in production)
  */
 function getSiteKey(): string {
-  return process.env.SITE_KEY || 'mail-relay-default-key';
+  const siteKey = process.env.SITE_KEY;
+  if (!siteKey) {
+    throw new Error('SITE_KEY is not configured');
+  }
+  return siteKey;
 }
 
 /**

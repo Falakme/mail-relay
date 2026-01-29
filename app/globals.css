@@ -51,3 +51,67 @@ body {
   scrollbar-color: var(--brand-primary) transparent;
   scrollbar-width: thin;
 }
+
+/* Text selection */
+::selection {
+  background: var(--brand-primary) !important;
+  color: #ffffff !important;
+}
+
+::-moz-selection {
+  background: var(--brand-primary) !important;
+  color: #ffffff !important;
+}
+
+img::selection {
+  background: var(--brand-primary) !important;
+  fill: #ffffff !important;
+}
+
+img::-moz-selection {
+  background: var(--brand-primary) !important;
+  fill: #ffffff !important;
+}
+
+@layer utilities {
+  .gradient-button {
+    appearance: none;
+    border: none;
+    background: linear-gradient(90deg, #000030, #0000C0, #000030);
+    background-size: 200% 100%;
+    background-position: 0% 50%;
+    transition:
+      background-position 0.6s ease,
+      transform 0.18s ease,
+      box-shadow 0.2s ease,
+      filter 0.2s ease;
+  }
+
+  .gradient-button:hover {
+    background-position: 100% 50%;
+    transform: translateY(1px);
+    box-shadow: 0 6px 16px rgba(0, 0, 192, 0.35);
+    filter: brightness(1.05);
+  }
+
+  .gradient-button:active {
+    transform: translateY(0);
+    box-shadow: 0 3px 8px rgba(0, 0, 192, 0.3);
+    filter: brightness(0.98);
+  }
+
+  .tab-content {
+    animation: tab-fade 220ms ease;
+  }
+}
+
+@keyframes tab-fade {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
