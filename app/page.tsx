@@ -26,40 +26,40 @@ function buildSessionCacheKey(key: string): string {
   return `${SESSION_CACHE_PREFIX}${key}`;
 }
 
+const pageCache = new Map<string, SessionCacheEntry<any>>();
+
 function readSessionCache<T>(key: string): T | null {
-  if (typeof window === 'undefined') return null;
   try {
-    const raw = sessionStorage.getItem(buildSessionCacheKey(key));
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as SessionCacheEntry<T>;
-    return parsed?.data ?? null;
+    const cacheKey = buildSessionCacheKey(key);
+    const entry = pageCache.get(cacheKey);
+    return entry?.data ?? null;
   } catch {
     return null;
   }
 }
 
 function writeSessionCache<T>(key: string, data: T): void {
-  if (typeof window === 'undefined') return;
   try {
+    const cacheKey = buildSessionCacheKey(key);
     const entry: SessionCacheEntry<T> = { data };
-    sessionStorage.setItem(buildSessionCacheKey(key), JSON.stringify(entry));
+    pageCache.set(cacheKey, entry);
   } catch {
-    // Ignore storage errors
+    // Ignore cache errors
   }
 }
 
 function clearSessionCacheByPrefix(prefix: string): void {
-  if (typeof window === 'undefined') return;
   try {
     const fullPrefix = buildSessionCacheKey(prefix);
-    for (let i = sessionStorage.length - 1; i >= 0; i -= 1) {
-      const key = sessionStorage.key(i);
-      if (key && key.startsWith(fullPrefix)) {
-        sessionStorage.removeItem(key);
+    const keysToDelete: string[] = [];
+    for (const [key] of pageCache) {
+      if (key.startsWith(fullPrefix)) {
+        keysToDelete.push(key);
       }
     }
+    keysToDelete.forEach(k => pageCache.delete(k));
   } catch {
-    // Ignore storage errors
+    // Ignore cache errors
   }
 }
 
