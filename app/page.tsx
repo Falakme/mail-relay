@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, Fragment } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Fragment } from 'react';
 import { Info, Trash2 } from 'lucide-react';
 
 function getAuthHeaders(): Record<string, string> {
@@ -65,7 +64,6 @@ function clearSessionCacheByPrefix(prefix: string): void {
 }
 
 export default function AdminPage() {
-  const router = useRouter();
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [siteKey, setSiteKey] = useState('');
   const [error, setError] = useState('');

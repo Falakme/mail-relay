@@ -1,4 +1,4 @@
-import { createHash, createHmac } from 'crypto';
+import { createHmac } from 'crypto';
 
 /**
  * Get the site key for hashing (used as salt/secret)
