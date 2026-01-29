@@ -215,6 +215,7 @@ export default function AdminPage() {
 
 function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const [activeTab, setActiveTab] = useState<'logs' | 'keys' | 'status' | 'docs'>('logs');
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
 
   useEffect(() => {
@@ -259,12 +260,24 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
               />
               <h1 className="font-bold">Mail Relay</h1>
             </div>
-            <button
-              onClick={onLogout}
-              className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg text-sm transition-colors border border-white/30 font-medium"
-            >
-              Logout
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setMobileNavOpen((s) => !s)}
+                className="sm:hidden text-foreground/90 p-2 rounded-md hover:bg-white/10 touch-lg"
+                aria-label="Toggle navigation"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
+
+              <button
+                onClick={onLogout}
+                className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg text-sm transition-colors border border-white/30 font-medium touch-lg"
+              >
+                Logout
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -272,7 +285,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
       {/* Navigation Tabs */}
       <nav className="bg-gradient-to-r from-[#0a0a0a] to-[#1a1a2e]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex space-x-8">
+          <div className="hidden sm:flex space-x-8">
             {(['logs', 'keys', 'status', 'docs'] as const).map((tab) => (
               <button
                 key={tab}
@@ -290,6 +303,27 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
               </button>
             ))}
           </div>
+
+          {mobileNavOpen && (
+            <div className="sm:hidden py-2 px-2">
+              <div className="flex flex-col gap-1">
+                {(['logs', 'keys', 'status', 'docs'] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => { handleTabChange(tab); setMobileNavOpen(false); }}
+                    className={`w-full text-left py-3 px-3 rounded-md font-medium touch-lg transition-colors ${
+                      activeTab === tab ? 'text-foreground bg-[#000030]/10' : 'text-foreground/70 hover:bg-white/5'
+                    }`}
+                  >
+                    {tab === 'logs' && 'Email Logs'}
+                    {tab === 'keys' && 'API Keys'}
+                    {tab === 'status' && 'System Status'}
+                    {tab === 'docs' && 'Documentation'}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </nav>
 
@@ -312,7 +346,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
             <div className="flex gap-3 justify-end">
               <button
                 onClick={handleCancel}
-                className="px-4 py-2 rounded-lg text-sm font-medium text-foreground border /40 hover:bg-[#0000C0]/10 transition-colors"
+                className="px-4 py-2 rounded-lg text-sm font-medium text-foreground hover:bg-[#0000C0]/10 transition-colors"
               >
                 Cancel
               </button>
@@ -1059,7 +1093,7 @@ function ApiKeysPanel({ showConfirm }: { showConfirm: (message: string, onConfir
                 type="text"
                 value={keyName}
                 onChange={(e) => setKeyName(e.target.value)}
-                className="w-full px-4 py-2 rounded-lg border /40 bg-[#141414] text-foreground focus:ring-2 focus:ring-[#0000C0] placeholder-foreground/40 transition-all"
+                className="w-full px-4 py-2 rounded-lg bg-[#141414] text-foreground focus:ring-2 focus:ring-[#0000C0] placeholder-foreground/40 transition-all"
                 placeholder="e.g., Production, My App, Testing"
                 required
               />
@@ -1094,7 +1128,7 @@ function ApiKeysPanel({ showConfirm }: { showConfirm: (message: string, onConfir
         ) : (
           <div className="divide-y divide-brand-accent/30">
             {apiKeys.map((key) => (
-              <div key={key._id} className="p-6 flex items-center justify-between hover:bg-[#0000C0]/10 transition-colors">
+              <div key={key._id} className="p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 hover:bg-[#0000C0]/10 transition-colors">
                 <div className="flex-1">
                   {editingKey === key._id ? (
                     <div className="flex items-center space-x-2">
@@ -1102,7 +1136,7 @@ function ApiKeysPanel({ showConfirm }: { showConfirm: (message: string, onConfir
                         type="text"
                         value={editName}
                         onChange={(e) => setEditName(e.target.value)}
-                        className="px-3 py-1.5 rounded-lg border /40 bg-[#141414] text-foreground focus:ring-2 focus:ring-[#0000C0] text-sm placeholder-foreground/40 transition-all"
+                        className="px-3 py-1.5 rounded-lg bg-[#141414] text-foreground focus:ring-2 focus:ring-[#0000C0] text-sm placeholder-foreground/40 transition-all"
                         placeholder="Key name"
                         autoFocus
                         onKeyDown={(e) => {
@@ -1160,23 +1194,23 @@ function ApiKeysPanel({ showConfirm }: { showConfirm: (message: string, onConfir
                     {key.lastUsed && ` · Last used: ${new Date(key.lastUsed).toLocaleDateString()}`}
                   </div>
                 </div>
-                <div className="flex space-x-2">
+                <div className="flex gap-2">
                   <button
                     onClick={() => toggleKeyStatus(key._id)}
-                    className="px-4 py-2 text-sm font-medium text-foreground hover:bg-[#0000C0]/10 rounded-lg transition-colors"
+                    className="flex-1 px-4 py-2 text-sm font-medium bg-foreground text-background hover:bg-foreground/90 rounded-lg transition-colors touch-lg"
                   >
                     {key.isActive ? 'Disable' : 'Enable'}
                   </button>
                   <button
                     onClick={() => rotateKey(key._id, key.name)}
-                    className="px-4 py-2 text-sm font-medium text-yellow-400 hover:bg-yellow-900/20 rounded-lg transition-colors"
+                    className="flex-1 px-4 py-2 text-sm font-medium bg-yellow-500 text-white hover:bg-yellow-600 rounded-lg transition-colors touch-lg"
                     title="Generate a new API key (old one will stop working)"
                   >
                     Rotate
                   </button>
                   <button
                     onClick={() => deleteKey(key._id)}
-                    className="px-4 py-2 text-sm font-medium text-red-400 hover:bg-red-900/20 rounded-lg transition-colors"
+                    className="flex-1 px-4 py-2 text-sm font-medium bg-red-600 text-white hover:bg-red-700 rounded-lg transition-colors touch-lg"
                   >
                     Delete
                   </button>
@@ -1625,7 +1659,7 @@ function DocsPanel() {
                 id="apiKey"
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
-                className="w-full px-4 py-2 rounded-lg border /40 bg-[#141414] text-foreground focus:ring-2 focus:ring-[#0000C0] placeholder-foreground/40 text-sm transition-all"
+                className="w-full px-4 py-2 rounded-lg bg-[#141414] text-foreground focus:ring-2 focus:ring-[#0000C0] placeholder-foreground/40 text-sm transition-all"
                 placeholder="Enter your API key"
                 required
               />
@@ -1641,7 +1675,7 @@ function DocsPanel() {
                 id="senderName"
                 value={testSenderName}
                 onChange={(e) => setTestSenderName(e.target.value)}
-                className="w-full px-4 py-2 rounded-lg border /40 bg-[#141414] text-foreground focus:ring-2 focus:ring-[#0000C0] placeholder-foreground/40 text-sm transition-all"
+                className="w-full px-4 py-2 rounded-lg bg-[#141414] text-foreground focus:ring-2 focus:ring-[#0000C0] placeholder-foreground/40 text-sm transition-all"
                 placeholder="Your App Name"
                 required
               />
@@ -1657,7 +1691,7 @@ function DocsPanel() {
                 id="senderEmail"
                 value={testSenderEmail}
                 onChange={(e) => setTestSenderEmail(e.target.value)}
-                className="w-full px-4 py-2 rounded-lg border /40 bg-[#141414] text-foreground focus:ring-2 focus:ring-[#0000C0] placeholder-foreground/40 text-sm transition-all"
+                className="w-full px-4 py-2 rounded-lg bg-[#141414] text-foreground focus:ring-2 focus:ring-[#0000C0] placeholder-foreground/40 text-sm transition-all"
                 placeholder="noreply@example.com"
                 required
               />
@@ -1673,7 +1707,7 @@ function DocsPanel() {
                 id="testEmail"
                 value={testEmail}
                 onChange={(e) => setTestEmail(e.target.value)}
-                className="w-full px-4 py-2 rounded-lg border /40 bg-[#141414] text-foreground focus:ring-2 focus:ring-[#0000C0] placeholder-foreground/40 text-sm transition-all"
+                className="w-full px-4 py-2 rounded-lg bg-[#141414] text-foreground focus:ring-2 focus:ring-[#0000C0] placeholder-foreground/40 text-sm transition-all"
                 placeholder="recipient@example.com"
                 required
               />
@@ -1689,7 +1723,7 @@ function DocsPanel() {
                 id="testSubject"
                 value={testSubject}
                 onChange={(e) => setTestSubject(e.target.value)}
-                className="w-full px-4 py-2 rounded-lg border /40 bg-[#141414] text-foreground focus:ring-2 focus:ring-[#0000C0] placeholder-foreground/40 text-sm transition-all"
+                className="w-full px-4 py-2 rounded-lg bg-[#141414] text-foreground focus:ring-2 focus:ring-[#0000C0] placeholder-foreground/40 text-sm transition-all"
                 placeholder="Email subject"
                 required
               />
@@ -1704,7 +1738,7 @@ function DocsPanel() {
                 id="testBody"
                 value={testBody}
                 onChange={(e) => setTestBody(e.target.value)}
-                className="w-full px-4 py-2 rounded-lg border /40 bg-[#141414] text-foreground focus:ring-2 focus:ring-[#0000C0] placeholder-foreground/40 text-sm h-32 resize-none transition-all"
+                className="w-full px-4 py-2 rounded-lg bg-[#141414] text-foreground focus:ring-2 focus:ring-[#0000C0] placeholder-foreground/40 text-sm h-32 resize-none transition-all"
                 placeholder="Email body text"
                 required
               />

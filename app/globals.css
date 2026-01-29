@@ -89,7 +89,7 @@ img::-moz-selection {
 
   .gradient-button:hover {
     background-position: 100% 50%;
-    transform: translateY(1px);
+    transform: translateY(-2px);
     box-shadow: 0 6px 16px rgba(0, 0, 192, 0.35);
     filter: brightness(1.05);
   }
@@ -113,5 +113,27 @@ img::-moz-selection {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+/* Mobile friendly utility tweaks */
+@media (max-width: 640px) {
+  :root {
+    --radius-lg: 0.5rem;
+  }
+
+  .mobile-stack {
+    display: block !important;
+  }
+
+  .touch-lg {
+    padding-inline: 14px !important;
+    padding-block: 10px !important;
+    min-height: 44px;
+  }
+
+  nav .flex.space-x-8 {
+    gap: 0.5rem;
+    flex-wrap: wrap;
   }
 }
