@@ -378,13 +378,13 @@ function EmailLogsPanel({ showConfirm }: { showConfirm: (message: string, onConf
   useEffect(() => {
     // Fetch API keys once on mount to build cache, then fetch logs
     const loadData = async () => {
-      await fetchApiKeysForCache();
-      await fetchLogs();
+      const cache = await fetchApiKeysForCache();
+      await fetchLogs(cache);
     };
     loadData();
   }, [page, limit]);
 
-  async function fetchApiKeysForCache() {
+  async function fetchApiKeysForCache(): Promise<Record<string, string>> {
     try {
       const cacheKey = '/api/api-keys';
       const cached = readSessionCache<{ success: boolean; apiKeys?: any[] }>(cacheKey);
@@ -394,7 +394,7 @@ function EmailLogsPanel({ showConfirm }: { showConfirm: (message: string, onConf
           cache[key.keyId] = key.name;
         });
         setKeyIdCache(cache);
-        return;
+        return cache;
       }
 
       const res = await fetch('/api/api-keys', {
@@ -409,13 +409,15 @@ function EmailLogsPanel({ showConfirm }: { showConfirm: (message: string, onConf
           cache[key.keyId] = key.name;
         });
         setKeyIdCache(cache);
+        return cache;
       }
     } catch (error) {
       console.error('Failed to fetch API keys for cache:', error);
     }
+    return {};
   }
 
-  async function fetchLogs({ force = false }: { force?: boolean } = {}) {
+  async function fetchLogs(cache?: Record<string, string>, { force = false }: { force?: boolean } = {}) {
     setLoading(true);
     try {
       const cacheKey = `/api/logs?limit=${limit}&offset=${page * limit}`;
@@ -423,7 +425,7 @@ function EmailLogsPanel({ showConfirm }: { showConfirm: (message: string, onConf
       if (cached?.success && cached.logs && !force) {
         const enrichedLogs = cached.logs.map((log: any) => {
           if (log.metadata?.apiKeyId) {
-            const keyName = getKeyName(log.metadata.apiKeyId);
+            const keyName = (cache || keyIdCache)[log.metadata.apiKeyId] || 'Unknown';
             return { ...log, keyName };
           }
           return log;
@@ -443,7 +445,7 @@ function EmailLogsPanel({ showConfirm }: { showConfirm: (message: string, onConf
         // Enrich logs with key names from cache (synchronous lookup)
         const enrichedLogs = data.logs.map((log: any) => {
           if (log.metadata?.apiKeyId) {
-            const keyName = getKeyName(log.metadata.apiKeyId);
+            const keyName = (cache || keyIdCache)[log.metadata.apiKeyId] || 'Unknown';
             return { ...log, keyName };
           }
           return log;
@@ -470,7 +472,8 @@ function EmailLogsPanel({ showConfirm }: { showConfirm: (message: string, onConf
         const data = await res.json();
         if (data.success) {
           clearSessionCacheByPrefix('/api/logs?');
-          fetchLogs({ force: true });
+          const cache = await fetchApiKeysForCache();
+          fetchLogs(cache, { force: true });
         }
       } catch (error) {
         console.error('Failed to delete log:', error);
@@ -493,7 +496,8 @@ function EmailLogsPanel({ showConfirm }: { showConfirm: (message: string, onConf
         }
         setSelectedLogs(new Set());
         clearSessionCacheByPrefix('/api/logs?');
-        fetchLogs({ force: true });
+        const cache = await fetchApiKeysForCache();
+        fetchLogs(cache, { force: true });
       } catch (error) {
         console.error('Failed to delete logs:', error);
       }
