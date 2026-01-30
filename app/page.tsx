@@ -374,6 +374,8 @@ function EmailLogsPanel({ showConfirm }: { showConfirm: (message: string, onConf
   const [expandedLogs, setExpandedLogs] = useState<Set<string>>(new Set());
   const [keyIdCache, setKeyIdCache] = useState<Record<string, string>>({}); // Cache keyId -> name
   const [selectedLogs, setSelectedLogs] = useState<Set<string>>(new Set()); // Track selected logs for bulk delete
+  const [sortBy, setSortBy] = useState<'timestamp' | 'recipient' | 'status' | 'provider' | 'apiKey'>('timestamp');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   useEffect(() => {
     // Fetch API keys once on mount to build cache, then fetch logs
@@ -527,6 +529,49 @@ function EmailLogsPanel({ showConfirm }: { showConfirm: (message: string, onConf
     return keyIdCache[keyId] || 'Unknown';
   }
 
+  function handleSort(column: 'timestamp' | 'recipient' | 'status' | 'provider' | 'apiKey') {
+    if (sortBy === column) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(column);
+      setSortOrder('desc');
+    }
+  }
+
+  const sortedLogs = [...logs].sort((a, b) => {
+    let compareA: any;
+    let compareB: any;
+
+    switch (sortBy) {
+      case 'timestamp':
+        compareA = new Date(a.timestamp).getTime();
+        compareB = new Date(b.timestamp).getTime();
+        break;
+      case 'recipient':
+        compareA = a.to.toLowerCase();
+        compareB = b.to.toLowerCase();
+        break;
+      case 'status':
+        compareA = a.status;
+        compareB = b.status;
+        break;
+      case 'provider':
+        compareA = a.provider;
+        compareB = b.provider;
+        break;
+      case 'apiKey':
+        compareA = (a.keyName || 'Unknown').toLowerCase();
+        compareB = (b.keyName || 'Unknown').toLowerCase();
+        break;
+      default:
+        return 0;
+    }
+
+    if (compareA < compareB) return sortOrder === 'asc' ? -1 : 1;
+    if (compareA > compareB) return sortOrder === 'asc' ? 1 : -1;
+    return 0;
+  });
+
   const totalPages = Math.ceil(total / limit);
 
   return (
@@ -650,20 +695,44 @@ function EmailLogsPanel({ showConfirm }: { showConfirm: (message: string, onConf
                         />
                       </div>
                     </th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-foreground/80 uppercase tracking-wider">
-                      Timestamp
+                    <th 
+                      className="px-6 py-3 text-center text-xs font-medium text-foreground/80 uppercase tracking-wider cursor-pointer hover:bg-[#1a1a1a] select-none"
+                      onClick={() => handleSort('timestamp')}
+                    >
+                      <div className="flex items-center justify-center gap-1">
+                        Timestamp
+                        <span className={sortBy === 'timestamp' ? 'text-blue-400' : 'invisible'}>{sortOrder === 'asc' ? '↑' : '↓'}</span>
+                      </div>
                     </th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-foreground/80 uppercase tracking-wider">
-                      Recipient
+                    <th 
+                      className="px-6 py-3 text-center text-xs font-medium text-foreground/80 uppercase tracking-wider cursor-pointer hover:bg-[#1a1a1a] select-none"
+                      onClick={() => handleSort('recipient')}
+                    >
+                      <div className="flex items-center justify-center gap-1">
+                        Recipient
+                        <span className={sortBy === 'recipient' ? 'text-blue-400' : 'invisible'}>{sortOrder === 'asc' ? '↑' : '↓'}</span>
+                      </div>
                     </th>
                     <th className="px-6 py-3 text-center text-xs font-medium text-foreground/80 uppercase tracking-wider">
                       Subject
                     </th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-foreground/80 uppercase tracking-wider">
-                      Status
+                    <th 
+                      className="px-6 py-3 text-center text-xs font-medium text-foreground/80 uppercase tracking-wider cursor-pointer hover:bg-[#1a1a1a] select-none"
+                      onClick={() => handleSort('status')}
+                    >
+                      <div className="flex items-center justify-center gap-1">
+                        Status
+                        <span className={sortBy === 'status' ? 'text-blue-400' : 'invisible'}>{sortOrder === 'asc' ? '↑' : '↓'}</span>
+                      </div>
                     </th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-foreground/80 uppercase tracking-wider">
-                      API Key
+                    <th 
+                      className="px-6 py-3 text-center text-xs font-medium text-foreground/80 uppercase tracking-wider cursor-pointer hover:bg-[#1a1a1a] select-none"
+                      onClick={() => handleSort('apiKey')}
+                    >
+                      <div className="flex items-center justify-center gap-1">
+                        API Key
+                        <span className={sortBy === 'apiKey' ? 'text-blue-400' : 'invisible'}>{sortOrder === 'asc' ? '↑' : '↓'}</span>
+                      </div>
                     </th>
                     <th className="px-6 py-3 text-center text-xs font-medium text-foreground/80 uppercase tracking-wider">
                       Actions
@@ -671,7 +740,7 @@ function EmailLogsPanel({ showConfirm }: { showConfirm: (message: string, onConf
                   </tr>
                 </thead>
                 <tbody className="">
-                  {logs.map((log) => (
+                  {sortedLogs.map((log) => (
                     <Fragment key={log._id}>
                       <tr className="hover:bg-[#0000C0]/10">
                         <td className="px-6 py-2 whitespace-nowrap text-center">
