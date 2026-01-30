@@ -557,7 +557,7 @@ function EmailLogsPanel({ showConfirm }: { showConfirm: (message: string, onConf
           <>
             {/* Top Pagination */}
             {(totalPages > 1 || total > 0) && (
-              <div className="bg-[#141414] border-b /20 px-6 py-4 space-y-4">
+              <div className="bg-[#141414] px-6 py-4 space-y-4">
                 {/* Results Info and Page Size */}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                   <div className="text-sm text-foreground/70">
@@ -628,7 +628,7 @@ function EmailLogsPanel({ showConfirm }: { showConfirm: (message: string, onConf
             {/* Table */}
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-[#141414] border-b /20">
+                <thead className="bg-[#141414]">
                   <tr>
                     <th className="px-6 py-3 text-center">
                       <div className="flex justify-center items-center">
@@ -666,7 +666,7 @@ function EmailLogsPanel({ showConfirm }: { showConfirm: (message: string, onConf
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#0000C0]/10">
+                <tbody className="">
                   {logs.map((log) => (
                     <Fragment key={log._id}>
                       <tr className="hover:bg-[#0000C0]/10">
@@ -807,7 +807,7 @@ function EmailLogsPanel({ showConfirm }: { showConfirm: (message: string, onConf
 
             {/* Bottom Pagination */}
             {(totalPages > 1 || total > 0) && (
-              <div className="bg-[#141414] border-t /20 px-6 py-4 space-y-4">
+              <div className="bg-[#141414] px-6 py-4 space-y-4">
                 {/* Results Info and Page Size */}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                   <div className="text-sm text-foreground/70">

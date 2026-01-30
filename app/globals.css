@@ -87,6 +87,15 @@ img::-moz-selection {
       filter 0.2s ease;
   }
 
+  /* Remove table borders */
+  table thead tr,
+  table thead th,
+  table tbody tr,
+  table tbody td {
+    border: none !important;
+    border-bottom: none !important;
+  }
+
   .gradient-button:hover {
     background-position: 100% 50%;
     transform: translateY(-2px);

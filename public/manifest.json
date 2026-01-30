@@ -1,0 +1,55 @@
+{
+  "name": "Falak Mail Relay",
+  "short_name": "Mail Relay",
+  "description": "A secure, reliable mail relay service with automatic fallback. Support for Brevo and NotificationAPI with comprehensive email logging and analytics.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#000000",
+  "background_color": "#ffffff",
+  "icons": [
+    {
+      "src": "https://falakme.github.io/brand-assets/logos/core/icon-square.png",
+      "sizes": "1000x1000",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "https://falakme.github.io/brand-assets/logos/core/icon-square.png",
+      "sizes": "1000x1000",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": ["productivity", "utilities"],
+  "screenshots": [
+    {
+      "src": "/status-540x720.png",
+      "sizes": "540x720",
+      "type": "image/png",
+      "form_factor": "narrow"
+    },
+    {
+      "src": "/status-1280x720.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Send Email",
+      "short_name": "Send",
+      "description": "Send an email through the mail relay",
+      "url": "/",
+      "icons": [
+        {
+          "src": "https://falakme.github.io/brand-assets/logos/core/icon-square.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ]
+}
