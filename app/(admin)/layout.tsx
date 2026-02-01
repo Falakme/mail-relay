@@ -22,6 +22,12 @@ export default function AdminLayout({
     checkAuth();
   }, []);
 
+  useEffect(() => {
+    if (isAuthenticated === false) {
+      router.push('/');
+    }
+  }, [isAuthenticated, router]);
+
   async function checkAuth() {
     try {
       const token = typeof window !== 'undefined' ? localStorage.getItem('adminToken') : null;
@@ -80,7 +86,6 @@ export default function AdminLayout({
   }
 
   if (!isAuthenticated) {
-    router.push('/');
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="animate-pulse text-xl">Redirecting...</div>
