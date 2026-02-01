@@ -219,16 +219,18 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
 
   useEffect(() => {
-    // Get initial tab from URL hash
-    const hash = window.location.hash.slice(1) as 'logs' | 'keys' | 'status' | 'docs' | '';
-    if (hash && ['logs', 'keys', 'status', 'docs'].includes(hash)) {
-      setActiveTab(hash);
+    // Get initial tab from URL path
+    const path = window.location.pathname.slice(1) as 'logs' | 'keys' | 'status' | 'docs' | '';
+    if (path && ['logs', 'keys', 'status', 'docs'].includes(path)) {
+      setActiveTab(path);
+    } else {
+      setActiveTab('logs');
     }
   }, []);
 
   const handleTabChange = (tab: 'logs' | 'keys' | 'status' | 'docs') => {
     setActiveTab(tab);
-    window.location.hash = `#${tab}`;
+    window.history.pushState({}, '', `/${tab}`);
   };
 
   function showConfirm(message: string, onConfirm: () => void) {
@@ -249,7 +251,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="bg-gradient-to-r from-[#000030] to-[#0000C0] text-white shadow-lg">
+      <header className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-[#000030] to-[#0000C0] text-white shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-2 text-2xl">
@@ -283,7 +285,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
       </header>
 
       {/* Navigation Tabs */}
-      <nav className="bg-gradient-to-r from-[#0a0a0a] to-[#1a1a2e]">
+      <nav className="sticky top-16 z-40 bg-gradient-to-r from-[#0a0a0a] to-[#1a1a2e]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="hidden sm:flex space-x-8">
             {(['logs', 'keys', 'status', 'docs'] as const).map((tab) => (
@@ -328,7 +330,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
       </nav>
 
       {/* Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="pt-24 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div key={activeTab} className="tab-content">
           {activeTab === 'logs' && <EmailLogsPanel showConfirm={showConfirm} />}
           {activeTab === 'keys' && <ApiKeysPanel showConfirm={showConfirm} />}
@@ -364,12 +366,28 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   );
 }
 
+function formatTimestamp(isoString: string): string {
+  const date = new Date(isoString);
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${day}/${month}/${year} ${hours}:${minutes}`;
+}
+
 function EmailLogsPanel({ showConfirm }: { showConfirm: (message: string, onConfirm: () => void) => void }) {
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
-  const [limit, setLimit] = useState(20);
+  const [limit, setLimit] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('mail-relay:logsPerPage');
+      return saved ? Number(saved) : 20;
+    }
+    return 20;
+  });
   const [jumpToPageInput, setJumpToPageInput] = useState('');
   const [expandedLogs, setExpandedLogs] = useState<Set<string>>(new Set());
   const [keyIdCache, setKeyIdCache] = useState<Record<string, string>>({}); // Cache keyId -> name
@@ -385,6 +403,13 @@ function EmailLogsPanel({ showConfirm }: { showConfirm: (message: string, onConf
     };
     loadData();
   }, [page, limit]);
+
+  // Save limit to localStorage whenever it changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('mail-relay:logsPerPage', String(limit));
+    }
+  }, [limit]);
 
   async function fetchApiKeysForCache(): Promise<Record<string, string>> {
     try {
@@ -754,7 +779,7 @@ function EmailLogsPanel({ showConfirm }: { showConfirm: (message: string, onConf
                           </div>
                         </td>
                         <td className="px-6 py-2 whitespace-nowrap text-sm text-foreground/80 text-center">
-                          {new Date(log.timestamp).toLocaleString()}
+                          {formatTimestamp(log.timestamp)}
                         </td>
                         <td className="px-6 py-2 whitespace-nowrap text-sm text-foreground text-center">
                           {log.to}
@@ -1263,8 +1288,8 @@ function ApiKeysPanel({ showConfirm }: { showConfirm: (message: string, onConfir
                     Usage: {key.usageCount} requests
                   </div>
                   <div className="mt-1 text-xs text-foreground/50">
-                    Created: {new Date(key.createdAt).toLocaleDateString()}
-                    {key.lastUsed && ` · Last used: ${new Date(key.lastUsed).toLocaleDateString()}`}
+                    Created: {formatTimestamp(key.createdAt)}
+                    {key.lastUsed && ` · Last used: ${formatTimestamp(key.lastUsed)}`}
                   </div>
                 </div>
                 <div className="flex gap-2">
@@ -1496,7 +1521,7 @@ function StatusPanel() {
             {status?.rateLimits?.notificationapi?.isLimited && (
               <p className="text-sm text-foreground/80">
                 Backoff until:{' '}
-                {new Date(status.rateLimits.notificationapi.backoffUntil).toLocaleString()}
+                {formatTimestamp(status.rateLimits.notificationapi.backoffUntil)}
               </p>
             )}
           </div>
@@ -1518,7 +1543,7 @@ function StatusPanel() {
             {status?.rateLimits?.brevo?.isLimited && (
               <p className="text-sm text-foreground/80">
                 Backoff until:{' '}
-                {new Date(status.rateLimits.brevo.backoffUntil).toLocaleString()}
+                {formatTimestamp(status.rateLimits.brevo.backoffUntil)}
               </p>
             )}
           </div>

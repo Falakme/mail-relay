@@ -24,14 +24,15 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get('offset') || '0', 10);
 
     try {
-      const logs = await convex.query(api.emailLogs.getEmailLogs, { limit, offset });
+      const [logs, totalCount] = await Promise.all([
+        convex.query(api.emailLogs.getEmailLogs, { limit, offset }),
+        convex.query(api.emailLogs.getEmailLogCount, {})
+      ]);
       
-      // For now, return the count as the length of results plus offset
-      // In a real app, you'd want a separate count query
       return NextResponse.json({
         success: true,
         logs,
-        total: logs.length + offset,
+        total: totalCount,
         limit,
         offset,
       });
