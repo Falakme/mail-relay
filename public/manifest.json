@@ -23,20 +23,6 @@
     }
   ],
   "categories": ["productivity", "utilities"],
-  "screenshots": [
-    {
-      "src": "/status-540x720.png",
-      "sizes": "540x720",
-      "type": "image/png",
-      "form_factor": "narrow"
-    },
-    {
-      "src": "/status-1280x720.png",
-      "sizes": "1280x720",
-      "type": "image/png",
-      "form_factor": "wide"
-    }
-  ],
   "shortcuts": [
     {
       "name": "Send Email",
