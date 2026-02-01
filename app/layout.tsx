@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { Providers } from "./providers";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -97,9 +98,11 @@ export default function RootLayout({
         <link rel="mask-icon" href={iconUrl} color="#000000" />
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <div className="min-h-screen flex flex-col">
-          {children}
-        </div>
+        <Providers>
+          <div className="min-h-screen flex flex-col">
+            {children}
+          </div>
+        </Providers>
         <script
           dangerouslySetInnerHTML={{
             __html: `if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js'); }`,

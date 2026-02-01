@@ -1,7 +1,41 @@
 'use client';
 
 import { useState, useEffect, Fragment } from 'react';
-import { Info, Trash2 } from 'lucide-react';
+import { Info, Trash2, Menu, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 function getAuthHeaders(): Record<string, string> {
   if (typeof window === 'undefined') {
@@ -70,12 +104,10 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(false);
   const [isClient, setIsClient] = useState(false);
 
-  // First effect: Initialize client-side only
   useEffect(() => {
     setIsClient(true);
   }, []);
 
-  // Second effect: Check auth after client is ready
   useEffect(() => {
     if (isClient) {
       checkAuth();
@@ -113,11 +145,9 @@ export default function AdminPage() {
       const data = await res.json();
 
       if (data.success) {
-        // Store token in localStorage for cross-origin access
         if (data.token && typeof window !== 'undefined') {
           localStorage.setItem('adminToken', data.token);
         }
-        // Verify the session cookie was set by checking auth status
         await checkAuth();
       } else {
         setError(data.message || 'Login failed');
@@ -141,7 +171,6 @@ export default function AdminPage() {
       if (typeof window !== 'undefined') {
         localStorage.removeItem('adminToken');
       }
-      // Verify logout was successful
       setIsAuthenticated(false);
     } catch (err) {
       console.error('Logout failed:', err);
@@ -161,50 +190,49 @@ export default function AdminPage() {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <div className="w-full max-w-md">
-            <div className="bg-[#1a1a1a] rounded-2xl shadow-2xl p-8">
-            <div className="text-center mb-8">
-              <div className="flex items-center justify-center gap-2 mb-2 text-3xl">
+          <Card className="border-0 shadow-2xl">
+            <CardHeader className="text-center">
+              <div className="flex items-center justify-center gap-2 mb-2">
                 <img 
                   src="https://falakme.github.io/brand-assets/logos/core/icon.svg" 
                   alt="Falak.me" 
-                  className="h-[1em] invert"
+                  className="h-8 dark:invert"
                 />
-                <h1 className="font-bold">Mail Relay</h1>
+                <CardTitle className="text-3xl">Mail Relay</CardTitle>
               </div>
-              <p className="text-foreground">Admin Panel Login</p>
-            </div>
-
-            <form onSubmit={handleLogin} className="space-y-6">
-              <div>
-                <label htmlFor="siteKey" className="block text-sm font-medium text-foreground mb-2">
-                  Site Key
-                </label>
-                <input
-                  type="password"
-                  id="siteKey"
-                  value={siteKey}
-                  onChange={(e) => setSiteKey(e.target.value)}
-                  className="w-full px-4 py-3 rounded-lg bg-background text-foreground focus:ring-2 focus:ring-brand-primary focus:border-brand-primary transition-all placeholder-foreground/50"
-                  placeholder="Enter your site key"
-                  required
-                />
-              </div>
-
-              {error && (
-                <div className="bg-red-600/30 text-red-100 px-4 py-3 rounded-lg text-sm border border-red-500/80">
-                  {error}
+              <CardDescription className="text-base">Admin Panel Login</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleLogin} className="space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="siteKey">Site Key</Label>
+                  <Input
+                    type="password"
+                    id="siteKey"
+                    value={siteKey}
+                    onChange={(e) => setSiteKey(e.target.value)}
+                    placeholder="Enter your site key"
+                    required
+                  />
                 </div>
-              )}
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full gradient-button text-white font-semibold py-3 px-6 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {loading ? 'Logging in...' : 'Login'}
-              </button>
-            </form>
-          </div>
+                {error && (
+                  <Alert variant="destructive">
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                )}
+
+                <Button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-gradient-to-r from-[#000030] to-[#0000C0] hover:from-[#000020] hover:to-[#0000B0] text-white"
+                  size="lg"
+                >
+                  {loading ? 'Logging in...' : 'Login'}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
         </div>
       </div>
     );
@@ -219,7 +247,6 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
 
   useEffect(() => {
-    // Get initial tab from URL path
     const path = window.location.pathname.slice(1) as 'logs' | 'keys' | 'status' | 'docs' | '';
     if (path && ['logs', 'keys', 'status', 'docs'].includes(path)) {
       setActiveTab(path);
@@ -231,6 +258,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const handleTabChange = (tab: 'logs' | 'keys' | 'status' | 'docs') => {
     setActiveTab(tab);
     window.history.pushState({}, '', `/${tab}`);
+    setMobileNavOpen(false);
   };
 
   function showConfirm(message: string, onConfirm: () => void) {
@@ -244,58 +272,54 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
     }
   }
 
-  function handleCancel() {
-    setConfirmDialog(null);
-  }
-
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-[#000030] to-[#0000C0] text-white shadow-lg">
+      <header className="sticky top-0 z-50 border-b bg-gradient-to-r from-[#000030] to-[#0000C0] text-white shadow-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-2 text-2xl">
+            <div className="flex items-center gap-2 text-2xl font-bold">
               <img 
                 src="https://falakme.github.io/brand-assets/logos/core/icon.svg" 
                 alt="Falak" 
-                className="h-[1em] invert"
+                className="h-6 invert"
               />
-              <h1 className="font-bold">Mail Relay</h1>
+              Mail Relay
             </div>
             <div className="flex items-center gap-2">
+              <ThemeToggle />
               <button
                 onClick={() => setMobileNavOpen((s) => !s)}
-                className="sm:hidden text-foreground/90 p-2 rounded-md hover:bg-white/10 touch-lg"
+                className="sm:hidden p-2 hover:bg-white/20 rounded-md transition-colors"
                 aria-label="Toggle navigation"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
+                {mobileNavOpen ? <X size={24} /> : <Menu size={24} />}
               </button>
 
-              <button
+              <Button
                 onClick={onLogout}
-                className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg text-sm transition-colors border border-white/30 font-medium touch-lg"
+                className="bg-white text-blue-600 hover:bg-slate-100 font-medium"
+                size="sm"
               >
                 Logout
-              </button>
+              </Button>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Navigation Tabs */}
-      <nav className="sticky top-16 z-40 bg-gradient-to-r from-[#0a0a0a] to-[#1a1a2e]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="hidden sm:flex space-x-8">
+      {/* Mobile Navigation */}
+      {mobileNavOpen && (
+        <div className="sm:hidden border-b bg-gradient-to-r from-[#000030]/5 to-[#0000C0]/5">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex flex-col gap-1">
             {(['logs', 'keys', 'status', 'docs'] as const).map((tab) => (
               <button
                 key={tab}
                 onClick={() => handleTabChange(tab)}
-                className={`relative py-4 px-2 font-medium text-sm transition-colors after:absolute after:bottom-0 after:left-0 after:h-[2px] after:w-full after:bg-gradient-to-r after:from-[#000030] after:to-[#0000C0] after:opacity-0 after:transition-opacity after:content-[''] ${
-                  activeTab === tab
-                    ? 'text-foreground after:opacity-100'
-                    : 'text-foreground/60 hover:text-foreground hover:after:opacity-100'
+                className={`w-full text-left py-3 px-3 rounded-md font-medium transition-colors ${
+                  activeTab === tab 
+                    ? 'bg-gradient-to-r from-[#000030]/20 to-[#0000C0]/20 text-foreground' 
+                    : 'hover:bg-gradient-to-r hover:from-[#000030]/10 hover:to-[#0000C0]/10'
                 }`}
               >
                 {tab === 'logs' && 'Email Logs'}
@@ -305,62 +329,63 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
               </button>
             ))}
           </div>
-
-          {mobileNavOpen && (
-            <div className="sm:hidden py-2 px-2">
-              <div className="flex flex-col gap-1">
-                {(['logs', 'keys', 'status', 'docs'] as const).map((tab) => (
-                  <button
-                    key={tab}
-                    onClick={() => { handleTabChange(tab); setMobileNavOpen(false); }}
-                    className={`w-full text-left py-3 px-3 rounded-md font-medium touch-lg transition-colors ${
-                      activeTab === tab ? 'text-foreground bg-[#000030]/10' : 'text-foreground/70 hover:bg-white/5'
-                    }`}
-                  >
-                    {tab === 'logs' && 'Email Logs'}
-                    {tab === 'keys' && 'API Keys'}
-                    {tab === 'status' && 'System Status'}
-                    {tab === 'docs' && 'Documentation'}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
-      </nav>
+      )}
+
+      {/* Desktop Navigation Tabs */}
+      <div className="hidden sm:block border-b bg-muted/30">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <Tabs value={activeTab} onValueChange={(value) => handleTabChange(value as any)} className="border-0">
+            <TabsList className="bg-transparent w-full justify-start rounded-none border-0 p-0">
+              <TabsTrigger value="logs" className="rounded-none border-b-2 border-transparent data-[state=active]:border-transparent data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#000030]/20 data-[state=active]:to-[#0000C0]/20">
+                Email Logs
+              </TabsTrigger>
+              <TabsTrigger value="keys" className="rounded-none border-b-2 border-transparent data-[state=active]:border-transparent data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#000030]/20 data-[state=active]:to-[#0000C0]/20">
+                API Keys
+              </TabsTrigger>
+              <TabsTrigger value="status" className="rounded-none border-b-2 border-transparent data-[state=active]:border-transparent data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#000030]/20 data-[state=active]:to-[#0000C0]/20">
+                System Status
+              </TabsTrigger>
+              <TabsTrigger value="docs" className="rounded-none border-b-2 border-transparent data-[state=active]:border-transparent data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#000030]/20 data-[state=active]:to-[#0000C0]/20">
+                Documentation
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+      </div>
 
       {/* Content */}
-      <main className="pt-24 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div key={activeTab} className="tab-content">
-          {activeTab === 'logs' && <EmailLogsPanel showConfirm={showConfirm} />}
-          {activeTab === 'keys' && <ApiKeysPanel showConfirm={showConfirm} />}
-          {activeTab === 'status' && <StatusPanel />}
-          {activeTab === 'docs' && <DocsPanel />}
-        </div>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {activeTab === 'logs' && <EmailLogsPanel showConfirm={showConfirm} />}
+        {activeTab === 'keys' && <ApiKeysPanel showConfirm={showConfirm} />}
+        {activeTab === 'status' && <StatusPanel />}
+        {activeTab === 'docs' && <DocsPanel />}
       </main>
 
       {/* Confirmation Dialog */}
       {confirmDialog && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-          <div className="bg-[#1a1a1a] rounded-xl shadow-lg p-6 max-w-md w-11/12">
-            <h3 className="text-lg font-semibold text-foreground mb-4">Confirm Action</h3>
-            <p className="text-foreground/80 mb-6">{confirmDialog.message}</p>
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={handleCancel}
-                className="px-4 py-2 rounded-lg text-sm font-medium text-foreground hover:bg-[#0000C0]/10 transition-colors"
+        <Dialog open={true} onOpenChange={() => setConfirmDialog(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Confirm Action</DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-muted-foreground">{confirmDialog.message}</p>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setConfirmDialog(null)}
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="destructive"
                 onClick={handleConfirm}
-                className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-red-600 hover:bg-red-700 transition-colors"
               >
                 Confirm
-              </button>
-            </div>
-          </div>
-        </div>
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );
@@ -388,15 +413,13 @@ function EmailLogsPanel({ showConfirm }: { showConfirm: (message: string, onConf
     }
     return 20;
   });
-  const [jumpToPageInput, setJumpToPageInput] = useState('');
   const [expandedLogs, setExpandedLogs] = useState<Set<string>>(new Set());
-  const [keyIdCache, setKeyIdCache] = useState<Record<string, string>>({}); // Cache keyId -> name
-  const [selectedLogs, setSelectedLogs] = useState<Set<string>>(new Set()); // Track selected logs for bulk delete
+  const [keyIdCache, setKeyIdCache] = useState<Record<string, string>>({});
+  const [selectedLogs, setSelectedLogs] = useState<Set<string>>(new Set());
   const [sortBy, setSortBy] = useState<'timestamp' | 'recipient' | 'status' | 'provider' | 'apiKey'>('timestamp');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   useEffect(() => {
-    // Fetch API keys once on mount to build cache, then fetch logs
     const loadData = async () => {
       const cache = await fetchApiKeysForCache();
       await fetchLogs(cache);
@@ -404,7 +427,6 @@ function EmailLogsPanel({ showConfirm }: { showConfirm: (message: string, onConf
     loadData();
   }, [page, limit]);
 
-  // Save limit to localStorage whenever it changes
   useEffect(() => {
     if (typeof window !== 'undefined') {
       localStorage.setItem('mail-relay:logsPerPage', String(limit));
@@ -469,7 +491,6 @@ function EmailLogsPanel({ showConfirm }: { showConfirm: (message: string, onConf
       const data = await res.json();
       if (data.success) {
         writeSessionCache(cacheKey, data);
-        // Enrich logs with key names from cache (synchronous lookup)
         const enrichedLogs = data.logs.map((log: any) => {
           if (log.metadata?.apiKeyId) {
             const keyName = (cache || keyIdCache)[log.metadata.apiKeyId] || 'Unknown';
@@ -512,7 +533,6 @@ function EmailLogsPanel({ showConfirm }: { showConfirm: (message: string, onConf
     if (selectedLogs.size === 0) return;
     showConfirm(`Delete ${selectedLogs.size} selected log(s)?`, async () => {
       try {
-        // Delete each selected log
         for (const id of selectedLogs) {
           await fetch('/api/logs', {
             method: 'DELETE',
@@ -547,11 +567,6 @@ function EmailLogsPanel({ showConfirm }: { showConfirm: (message: string, onConf
     } else {
       setSelectedLogs(new Set(logs.map(log => log._id)));
     }
-  }
-
-  function getKeyName(keyId: string): string {
-    // Simple synchronous lookup from cache
-    return keyIdCache[keyId] || 'Unknown';
   }
 
   function handleSort(column: 'timestamp' | 'recipient' | 'status' | 'provider' | 'apiKey') {
@@ -602,98 +617,108 @@ function EmailLogsPanel({ showConfirm }: { showConfirm: (message: string, onConf
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-foreground">Email Logs</h2>
+        <h2 className="text-2xl font-bold">Email Logs</h2>
         <div className="flex gap-2">
           {selectedLogs.size > 0 && (
-            <button
+            <Button
               onClick={deleteSelectedLogs}
-              className="bg-red-600 hover:bg-red-700 text-white font-medium px-4 py-2 rounded-lg text-sm transition-colors flex items-center gap-2"
+              variant="destructive"
+              size="sm"
             >
-              <Trash2 size={16} />
+              <Trash2 size={16} className="mr-2" />
               Delete {selectedLogs.size}
-            </button>
+            </Button>
           )}
-          <button
+          <Button
             onClick={() => fetchLogs()}
-            className="gradient-button text-white px-4 py-2 rounded-lg text-sm font-medium"
+            size="sm"
           >
             Refresh
-          </button>
+          </Button>
         </div>
       </div>
 
-      <div className="bg-[#1a1a1a] rounded-xl shadow overflow-hidden">
+      <Card>
         {loading ? (
-          <div className="p-8 text-center text-foreground/60">Loading...</div>
+          <CardContent className="pt-6 text-center text-muted-foreground">
+            Loading...
+          </CardContent>
         ) : logs.length === 0 ? (
-          <div className="p-8 text-center text-foreground/60">No email logs found</div>
+          <CardContent className="pt-6 text-center text-muted-foreground">
+            No email logs found
+          </CardContent>
         ) : (
           <>
-            {/* Top Pagination */}
-            {(totalPages > 1 || total > 0) && (
-              <div className="bg-[#141414] px-6 py-4 space-y-4">
-                {/* Results Info and Page Size */}
+            {/* Pagination Top */}
+            {totalPages > 1 && (
+              <div className="border-b p-6 space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                  <div className="text-sm text-foreground/70">
+                  <div className="text-sm text-muted-foreground">
                     Showing {total === 0 ? 0 : page * limit + 1} to {Math.min((page + 1) * limit, total)} of {total} results
                   </div>
                   <div className="flex items-center gap-2">
-                    <label htmlFor="pageSize" className="text-sm text-foreground/70">Per page:</label>
-                    <select
-                      id="pageSize"
-                      value={limit}
-                      onChange={(e) => {
-                        setLimit(Number(e.target.value));
-                        setPage(0);
-                      }}
-                      className="px-2 py-1.5 rounded-lg bg-[#141414] text-foreground text-sm focus:ring-2 focus:ring-[#0000C0]"
-                    >
-                      <option value={10}>10</option>
-                      <option value={20}>20</option>
-                      <option value={50}>50</option>
-                      <option value={100}>100</option>
-                    </select>
+                    <Label htmlFor="pageSize">Per page:</Label>
+                    <Select value={String(limit)} onValueChange={(val) => {
+                      setLimit(Number(val));
+                      setPage(0);
+                    }}>
+                      <SelectTrigger className="w-20">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="10">10</SelectItem>
+                        <SelectItem value="20">20</SelectItem>
+                        <SelectItem value="50">50</SelectItem>
+                        <SelectItem value="100">100</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 
-                {/* Navigation Buttons */}
+                {/* Page Navigation */}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                   <div className="flex items-center gap-2">
-                    <button
+                    <Button
                       onClick={() => setPage(0)}
                       disabled={page === 0}
-                      className="px-3 py-1.5 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#0000C0]/10 transition-colors"
-                      title="First page"
+                      variant="outline"
+                      size="sm"
                     >
-                      ⟨⟨
-                    </button>
+                      <ChevronLeft size={16} className="mr-1" />
+                      First
+                    </Button>
                     <div className="flex flex-wrap gap-1">
-                      {Array.from({ length: totalPages }, (_, i) => (
-                        <button
-                          key={i}
-                          onClick={() => setPage(i)}
-                          className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
-                            page === i
-                              ? 'bg-[#0000C0] text-white '
-                              : '/40 text-foreground hover:bg-[#0000C0]/10'
-                          }`}
-                        >
-                          {i + 1}
-                        </button>
-                      ))}
+                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                        let pageNum = i;
+                        if (totalPages > 5 && page > 2) {
+                          pageNum = page - 2 + i;
+                        }
+                        if (pageNum >= totalPages) return null;
+                        return (
+                          <Button
+                            key={pageNum}
+                            onClick={() => setPage(pageNum)}
+                            variant={page === pageNum ? "default" : "outline"}
+                            size="sm"
+                            className="w-8 p-0"
+                          >
+                            {pageNum + 1}
+                          </Button>
+                        );
+                      })}
                     </div>
-                    <button
+                    <Button
                       onClick={() => setPage(totalPages - 1)}
                       disabled={page >= totalPages - 1}
-                      className="px-3 py-1.5 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#0000C0]/10 transition-colors"
-                      title="Last page"
+                      variant="outline"
+                      size="sm"
                     >
-                      ⟩⟩
-                    </button>
+                      Last
+                      <ChevronRight size={16} className="ml-1" />
+                    </Button>
                   </div>
-
-                  <span className="text-sm text-foreground/70">
-                    Page <span className="font-semibold text-foreground">{page + 1}</span> of <span className="font-semibold text-foreground">{totalPages}</span>
+                  <span className="text-sm text-muted-foreground">
+                    Page {page + 1} of {totalPages}
                   </span>
                 </div>
               </div>
@@ -701,281 +726,193 @@ function EmailLogsPanel({ showConfirm }: { showConfirm: (message: string, onConf
 
             {/* Table */}
             <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-[#141414]">
-                  <tr>
-                    <th className="px-6 py-3 text-center">
-                      <div className="flex justify-center items-center">
-                        <input
-                          type="checkbox"
-                          ref={(el) => {
-                            if (el) {
-                              el.indeterminate = selectedLogs.size > 0 && selectedLogs.size < logs.length;
-                            }
-                          }}
-                          checked={selectedLogs.size === logs.length && logs.length > 0}
-                          onChange={toggleSelectAll}
-                          className="w-4 h-4 cursor-pointer accent-blue-600"
-                          title="Select all logs"
-                        />
-                      </div>
-                    </th>
-                    <th 
-                      className="px-6 py-3 text-center text-xs font-medium text-foreground/80 uppercase tracking-wider cursor-pointer hover:bg-[#1a1a1a] select-none"
-                      onClick={() => handleSort('timestamp')}
-                    >
-                      <div className="flex items-center justify-center gap-1">
-                        Timestamp
-                        <span className={sortBy === 'timestamp' ? 'text-blue-400' : 'invisible'}>{sortOrder === 'asc' ? '↑' : '↓'}</span>
-                      </div>
-                    </th>
-                    <th 
-                      className="px-6 py-3 text-center text-xs font-medium text-foreground/80 uppercase tracking-wider cursor-pointer hover:bg-[#1a1a1a] select-none"
-                      onClick={() => handleSort('recipient')}
-                    >
-                      <div className="flex items-center justify-center gap-1">
-                        Recipient
-                        <span className={sortBy === 'recipient' ? 'text-blue-400' : 'invisible'}>{sortOrder === 'asc' ? '↑' : '↓'}</span>
-                      </div>
-                    </th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-foreground/80 uppercase tracking-wider">
-                      Subject
-                    </th>
-                    <th 
-                      className="px-6 py-3 text-center text-xs font-medium text-foreground/80 uppercase tracking-wider cursor-pointer hover:bg-[#1a1a1a] select-none"
-                      onClick={() => handleSort('status')}
-                    >
-                      <div className="flex items-center justify-center gap-1">
-                        Status
-                        <span className={sortBy === 'status' ? 'text-blue-400' : 'invisible'}>{sortOrder === 'asc' ? '↑' : '↓'}</span>
-                      </div>
-                    </th>
-                    <th 
-                      className="px-6 py-3 text-center text-xs font-medium text-foreground/80 uppercase tracking-wider cursor-pointer hover:bg-[#1a1a1a] select-none"
-                      onClick={() => handleSort('apiKey')}
-                    >
-                      <div className="flex items-center justify-center gap-1">
-                        API Key
-                        <span className={sortBy === 'apiKey' ? 'text-blue-400' : 'invisible'}>{sortOrder === 'asc' ? '↑' : '↓'}</span>
-                      </div>
-                    </th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-foreground/80 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-12">
+                      <Checkbox
+                        checked={selectedLogs.size === logs.length && logs.length > 0}
+                        onChange={toggleSelectAll}
+                      />
+                    </TableHead>
+                    <TableHead className="cursor-pointer" onClick={() => handleSort('timestamp')}>
+                      Timestamp {sortBy === 'timestamp' && (sortOrder === 'asc' ? '↑' : '↓')}
+                    </TableHead>
+                    <TableHead className="cursor-pointer" onClick={() => handleSort('recipient')}>
+                      Recipient {sortBy === 'recipient' && (sortOrder === 'asc' ? '↑' : '↓')}
+                    </TableHead>
+                    <TableHead>Subject</TableHead>
+                    <TableHead className="cursor-pointer" onClick={() => handleSort('status')}>
+                      Status {sortBy === 'status' && (sortOrder === 'asc' ? '↑' : '↓')}
+                    </TableHead>
+                    <TableHead className="cursor-pointer" onClick={() => handleSort('apiKey')}>
+                      API Key {sortBy === 'apiKey' && (sortOrder === 'asc' ? '↑' : '↓')}
+                    </TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {sortedLogs.map((log) => (
                     <Fragment key={log._id}>
-                      <tr className="hover:bg-[#0000C0]/10">
-                        <td className="px-6 py-2 whitespace-nowrap text-center">
-                          <div className="flex justify-center items-center">
-                            <input
-                              type="checkbox"
-                              checked={selectedLogs.has(log._id)}
-                              onChange={() => toggleSelectLog(log._id)}
-                              className="w-4 h-4 cursor-pointer accent-blue-600"
-                            />
-                          </div>
-                        </td>
-                        <td className="px-6 py-2 whitespace-nowrap text-sm text-foreground/80 text-center">
-                          {formatTimestamp(log.timestamp)}
-                        </td>
-                        <td className="px-6 py-2 whitespace-nowrap text-sm text-foreground text-center">
-                          {log.to}
-                        </td>
-                        <td className="px-6 py-2 text-sm text-foreground max-w-xs truncate text-center">
-                          {log.subject}
-                        </td>
-                        <td className="px-6 py-2 whitespace-nowrap text-center">
-                          <div
-                            className={`inline-block w-3 h-3 rounded-full ${
-                              log.status === 'success'
-                                ? 'bg-green-500'
-                                : log.status === 'fallback'
-                                ? 'bg-yellow-500'
-                                : 'bg-red-500'
-                            }`}
-                            title={log.status}
+                      <TableRow>
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedLogs.has(log._id)}
+                            onChange={() => toggleSelectLog(log._id)}
                           />
-                        </td>
-                        <td className="px-6 py-2 whitespace-nowrap text-sm text-foreground text-center">
-                          {log.keyName || <span className="text-foreground/40 italic">Unknown</span>}
-                        </td>
-                        <td className="px-6 py-2 whitespace-nowrap text-sm space-x-3 flex justify-center">
-                          <button
-                            onClick={() => {
-                              const newExpanded = new Set(expandedLogs);
-                              if (newExpanded.has(log._id)) {
-                                newExpanded.delete(log._id);
-                              } else {
-                                newExpanded.add(log._id);
-                              }
-                              setExpandedLogs(newExpanded);
-                            }}
-                            className="bg-[#0000C0] hover:bg-[#0000C0]/80 text-white p-2 rounded-lg transition-colors"
-                            title={expandedLogs.has(log._id) ? 'Hide details' : 'Show details'}
+                        </TableCell>
+                        <TableCell className="text-sm">{formatTimestamp(log.timestamp)}</TableCell>
+                        <TableCell className="text-sm">{log.to}</TableCell>
+                        <TableCell className="text-sm max-w-xs truncate">{log.subject}</TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={
+                              log.status === 'success'
+                                ? 'default'
+                                : log.status === 'fallback'
+                                ? 'secondary'
+                                : 'destructive'
+                            }
                           >
-                            <Info size={16} />
-                          </button>
-                          <button
-                            onClick={() => deleteLog(log._id)}
-                            className="bg-red-600 hover:bg-red-700 text-white p-2 rounded-lg transition-colors"
-                            title="Delete log"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </td>
-                      </tr>
+                            {log.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {log.keyName || <span className="text-muted-foreground italic">Unknown</span>}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button
+                              onClick={() => {
+                                const newExpanded = new Set(expandedLogs);
+                                if (newExpanded.has(log._id)) {
+                                  newExpanded.delete(log._id);
+                                } else {
+                                  newExpanded.add(log._id);
+                                }
+                                setExpandedLogs(newExpanded);
+                              }}
+                              variant="outline"
+                              size="sm"
+                            >
+                              <Info size={16} />
+                            </Button>
+                            <Button
+                              onClick={() => deleteLog(log._id)}
+                              variant="destructive"
+                              size="sm"
+                            >
+                              <Trash2 size={16} />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
                       {expandedLogs.has(log._id) && (
-                        <tr className="bg-[#141414]/60">
-                          <td colSpan={7} className="px-6 py-4">
-                            <div className="space-y-3">
+                        <TableRow>
+                          <TableCell colSpan={7} className="bg-muted/50">
+                            <div className="space-y-3 py-4">
                               <div className="grid grid-cols-2 gap-4 text-sm">
                                 <div>
-                                  <div className="text-foreground/60 text-xs uppercase">Message ID</div>
-                                  <div className="text-foreground font-mono text-xs mt-1">{log.messageId}</div>
+                                  <div className="text-xs font-medium text-muted-foreground uppercase">Message ID</div>
+                                  <div className="font-mono text-xs mt-1">{log.messageId}</div>
                                 </div>
                                 <div>
-                                  <div className="text-foreground/60 text-xs uppercase">Provider</div>
-                                  <div className="text-foreground capitalize mt-1">{log.provider}</div>
+                                  <div className="text-xs font-medium text-muted-foreground uppercase">Provider</div>
+                                  <div className="mt-1">{log.provider}</div>
                                 </div>
                                 <div>
-                                  <div className="text-foreground/60 text-xs uppercase">Status</div>
-                                  <div className="text-foreground capitalize mt-1">{log.status}</div>
+                                  <div className="text-xs font-medium text-muted-foreground uppercase">Status</div>
+                                  <div className="capitalize mt-1">{log.status}</div>
                                 </div>
                                 <div>
-                                  <div className="text-foreground/60 text-xs uppercase">To</div>
-                                  <div className="text-foreground mt-1">{log.to}</div>
+                                  <div className="text-xs font-medium text-muted-foreground uppercase">To</div>
+                                  <div className="mt-1">{log.to}</div>
                                 </div>
                                 <div className="col-span-2">
-                                  <div className="text-foreground/60 text-xs uppercase">Subject</div>
-                                  <div className="text-foreground mt-1">{log.subject}</div>
+                                  <div className="text-xs font-medium text-muted-foreground uppercase">Subject</div>
+                                  <div className="mt-1">{log.subject}</div>
                                 </div>
                                 {log.metadata && (
                                   <>
                                     {log.metadata.senderName && (
                                       <div>
-                                        <div className="text-foreground/60 text-xs uppercase">Sender Name</div>
-                                        <div className="text-foreground mt-1">{log.metadata.senderName}</div>
+                                        <div className="text-xs font-medium text-muted-foreground uppercase">Sender Name</div>
+                                        <div className="mt-1">{log.metadata.senderName}</div>
                                       </div>
                                     )}
                                     {log.metadata.replyTo && (
                                       <div>
-                                        <div className="text-foreground/60 text-xs uppercase">Reply To</div>
-                                        <div className="text-foreground mt-1">{log.metadata.replyTo}</div>
+                                        <div className="text-xs font-medium text-muted-foreground uppercase">Reply To</div>
+                                        <div className="mt-1">{log.metadata.replyTo}</div>
                                       </div>
                                     )}
                                     {log.metadata.bodyLength !== undefined && (
                                       <div>
-                                        <div className="text-foreground/60 text-xs uppercase">Body Length</div>
-                                        <div className="text-foreground mt-1">{log.metadata.bodyLength} chars</div>
+                                        <div className="text-xs font-medium text-muted-foreground uppercase">Body Length</div>
+                                        <div className="mt-1">{log.metadata.bodyLength} chars</div>
                                       </div>
                                     )}
                                     {log.metadata.htmlLength !== undefined && (
                                       <div>
-                                        <div className="text-foreground/60 text-xs uppercase">HTML Length</div>
-                                        <div className="text-foreground mt-1">{log.metadata.htmlLength} chars</div>
+                                        <div className="text-xs font-medium text-muted-foreground uppercase">HTML Length</div>
+                                        <div className="mt-1">{log.metadata.htmlLength} chars</div>
                                       </div>
                                     )}
                                     {log.metadata.apiKeyId && (
                                       <div>
-                                        <div className="text-foreground/60 text-xs uppercase">API Key ID</div>
-                                        <div className="text-foreground font-mono text-xs mt-1">{log.metadata.apiKeyId}</div>
+                                        <div className="text-xs font-medium text-muted-foreground uppercase">API Key ID</div>
+                                        <div className="font-mono text-xs mt-1">{log.metadata.apiKeyId}</div>
                                       </div>
                                     )}
                                   </>
                                 )}
                                 {log.error && (
                                   <div className="col-span-2">
-                                    <div className="text-red-400 text-xs uppercase">Error</div>
-                                    <div className="text-red-300 mt-1 text-sm">{log.error}</div>
+                                    <div className="text-xs font-medium text-destructive uppercase">Error</div>
+                                    <div className="text-destructive/80 mt-1 text-sm">{log.error}</div>
                                   </div>
                                 )}
                               </div>
                             </div>
-                          </td>
-                        </tr>
+                          </TableCell>
+                        </TableRow>
                       )}
                     </Fragment>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
 
-            {/* Bottom Pagination */}
-            {(totalPages > 1 || total > 0) && (
-              <div className="bg-[#141414] px-6 py-4 space-y-4">
-                {/* Results Info and Page Size */}
+            {/* Pagination Bottom */}
+            {totalPages > 1 && (
+              <div className="border-t p-6 space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                  <div className="text-sm text-foreground/70">
+                  <div className="text-sm text-muted-foreground">
                     Showing {total === 0 ? 0 : page * limit + 1} to {Math.min((page + 1) * limit, total)} of {total} results
                   </div>
                   <div className="flex items-center gap-2">
-                    <label htmlFor="pageSize2" className="text-sm text-foreground/70">Per page:</label>
-                    <select
-                      id="pageSize2"
-                      value={limit}
-                      onChange={(e) => {
-                        setLimit(Number(e.target.value));
-                        setPage(0);
-                      }}
-                      className="px-2 py-1.5 rounded-lg bg-[#141414] text-foreground text-sm focus:ring-2 focus:ring-[#0000C0]"
-                    >
-                      <option value={10}>10</option>
-                      <option value={20}>20</option>
-                      <option value={50}>50</option>
-                      <option value={100}>100</option>
-                    </select>
+                    <Label htmlFor="pageSize2">Per page:</Label>
+                    <Select value={String(limit)} onValueChange={(val) => {
+                      setLimit(Number(val));
+                      setPage(0);
+                    }}>
+                      <SelectTrigger className="w-20">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="10">10</SelectItem>
+                        <SelectItem value="20">20</SelectItem>
+                        <SelectItem value="50">50</SelectItem>
+                        <SelectItem value="100">100</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
-                </div>
-
-                {/* Navigation Buttons */}
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setPage(0)}
-                      disabled={page === 0}
-                      className="px-3 py-1.5 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#0000C0]/10 transition-colors"
-                      title="First page"
-                    >
-                      ⟨⟨
-                    </button>
-                    <div className="flex flex-wrap gap-1">
-                      {Array.from({ length: totalPages }, (_, i) => (
-                        <button
-                          key={i}
-                          onClick={() => setPage(i)}
-                          className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
-                            page === i
-                              ? 'bg-[#0000C0] text-white '
-                              : '/40 text-foreground hover:bg-[#0000C0]/10'
-                          }`}
-                        >
-                          {i + 1}
-                        </button>
-                      ))}
-                    </div>
-                    <button
-                      onClick={() => setPage(totalPages - 1)}
-                      disabled={page >= totalPages - 1}
-                      className="px-3 py-1.5 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#0000C0]/10 transition-colors"
-                      title="Last page"
-                    >
-                      ⟩⟩
-                    </button>
-                  </div>
-
-                  <span className="text-sm text-foreground/70">
-                    Page <span className="font-semibold text-foreground">{page + 1}</span> of <span className="font-semibold text-foreground">{totalPages}</span>
-                  </span>
                 </div>
               </div>
             )}
           </>
         )}
-
-      </div>
+      </Card>
     </div>
   );
 }
@@ -1133,191 +1070,182 @@ function ApiKeysPanel({ showConfirm }: { showConfirm: (message: string, onConfir
     }
   }
 
-  function startEditing(key: any) {
-    setEditingKey(key._id);
-    setEditName(key.name);
-  }
-
-  function cancelEditing() {
-    setEditingKey(null);
-    setEditName('');
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-foreground">API Keys</h2>
-        <button
+        <h2 className="text-2xl font-bold">API Keys</h2>
+        <Button
           onClick={() => { setShowForm(!showForm); setNewlyCreatedKey(null); }}
-          className="gradient-button text-white font-medium px-4 py-2 rounded-lg text-sm"
         >
           {showForm ? 'Cancel' : 'Generate New Key'}
-        </button>
+        </Button>
       </div>
 
       {/* Newly Created Key Alert */}
       {newlyCreatedKey && (
-        <div className="bg-[#0a3a0a]/40 border border-emerald-700/50 rounded-xl p-4">
-          <h4 className="font-semibold text-emerald-400 mb-2">
-            🔑 API Key Created Successfully!
-          </h4>
-          <p className="text-sm text-emerald-400/80 mb-3">
-            Copy this key now. You won&apos;t be able to see it again.
-          </p>
-          <div className="flex items-center gap-2">
-            <code className="flex-1 bg-[#141414] px-3 py-2 rounded text-sm font-mono break-all text-foreground">
-              {newlyCreatedKey}
-            </code>
-            <button
-              onClick={() => copyToClipboard(newlyCreatedKey)}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-4 py-2 rounded-lg text-sm transition-colors whitespace-nowrap"
-            >
-              {copied ? 'Copied!' : 'Copy'}
-            </button>
-          </div>
-        </div>
+        <Alert>
+          <AlertDescription>
+            <h4 className="font-semibold mb-2">
+              🔑 API Key Created Successfully!
+            </h4>
+            <p className="text-sm mb-3">
+              Copy this key now. You won&apos;t be able to see it again.
+            </p>
+            <div className="flex items-center gap-2 mt-3">
+              <code className="flex-1 bg-muted px-3 py-2 rounded text-sm font-mono break-all">
+                {newlyCreatedKey}
+              </code>
+              <Button
+                onClick={() => copyToClipboard(newlyCreatedKey)}
+                size="sm"
+              >
+                {copied ? 'Copied!' : 'Copy'}
+              </Button>
+            </div>
+          </AlertDescription>
+        </Alert>
       )}
 
       {/* Create Form */}
       {showForm && !newlyCreatedKey && (
-        <div className="bg-[#1a1a1a] rounded-xl shadow p-6">
-          <h3 className="text-lg font-semibold mb-4 text-foreground">Generate New API Key</h3>
-          <form onSubmit={handleCreateKey} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1">
-                Key Name
-              </label>
-              <input
-                type="text"
-                value={keyName}
-                onChange={(e) => setKeyName(e.target.value)}
-                className="w-full px-4 py-2 rounded-lg bg-[#141414] text-foreground focus:ring-2 focus:ring-[#0000C0] placeholder-foreground/40 transition-all"
-                placeholder="e.g., Production, My App, Testing"
-                required
-              />
-              <p className="mt-1 text-xs text-foreground/60">
-                Give this key a descriptive name to identify it later
-              </p>
-            </div>
-            {formError && (
-              <div className="bg-red-900/30 text-red-400 px-4 py-2 rounded-lg text-sm border border-red-800">
-                {formError}
+        <Card>
+          <CardHeader>
+            <CardTitle>Generate New API Key</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleCreateKey} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="keyName">Key Name</Label>
+                <Input
+                  id="keyName"
+                  type="text"
+                  value={keyName}
+                  onChange={(e) => setKeyName(e.target.value)}
+                  placeholder="e.g., Production, My App, Testing"
+                  required
+                />
+                <p className="text-xs text-muted-foreground">
+                  Give this key a descriptive name to identify it later
+                </p>
               </div>
-            )}
-            <button
-              type="submit"
-              className="gradient-button text-white font-medium px-6 py-2 rounded-lg"
-            >
-              Generate Key
-            </button>
-          </form>
-        </div>
+              {formError && (
+                <Alert variant="destructive">
+                  <AlertDescription>{formError}</AlertDescription>
+                </Alert>
+              )}
+              <Button type="submit">Generate Key</Button>
+            </form>
+          </CardContent>
+        </Card>
       )}
 
       {/* Keys List */}
-      <div className="bg-[#1a1a1a] rounded-xl shadow overflow-hidden">
+      <Card>
         {loading ? (
-          <div className="p-8 text-center text-foreground/60">Loading...</div>
+          <CardContent className="pt-6 text-center text-muted-foreground">
+            Loading...
+          </CardContent>
         ) : apiKeys.length === 0 ? (
-          <div className="p-8 text-center text-foreground/60">
+          <CardContent className="pt-6 text-center text-muted-foreground">
             <p>No API keys yet</p>
             <p className="text-sm mt-1">Generate a key to authenticate API requests</p>
-          </div>
+          </CardContent>
         ) : (
-          <div className="divide-y divide-brand-accent/30">
+          <div className="divide-y">
             {apiKeys.map((key) => (
-              <div key={key._id} className="p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 hover:bg-[#0000C0]/10 transition-colors">
-                <div className="flex-1">
-                  {editingKey === key._id ? (
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="text"
-                        value={editName}
-                        onChange={(e) => setEditName(e.target.value)}
-                        className="px-3 py-1.5 rounded-lg bg-[#141414] text-foreground focus:ring-2 focus:ring-[#0000C0] text-sm placeholder-foreground/40 transition-all"
-                        placeholder="Key name"
-                        autoFocus
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' && editName.trim()) {
-                            renameKey(key._id, editName.trim());
-                          } else if (e.key === 'Escape') {
-                            cancelEditing();
-                          }
-                        }}
-                      />
-                      <button
-                        onClick={() => editName.trim() && renameKey(key._id, editName.trim())}
-                        className="px-3 py-1.5 text-sm font-medium text-emerald-400 hover:bg-emerald-900/20 rounded-lg transition-colors"
-                      >
-                        Save
-                      </button>
-                      <button
-                        onClick={cancelEditing}
-                        className="px-2 py-1.5 text-sm text-foreground/60 hover:bg-[#0000C0]/10 rounded transition-colors"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center space-x-3">
-                      <h4 className="font-semibold text-foreground">{key.name}</h4>
-                      <button
-                        onClick={() => startEditing(key)}
-                        className="text-foreground/60 hover:text-brand-primary transition-colors"
-                        title="Rename"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                        </svg>
-                      </button>
-                      <span
-                        className={`px-2 py-0.5 text-xs rounded-full font-medium ${
-                          key.isActive
-                            ? 'bg-emerald-600/30 text-emerald-300'
-                            : 'bg-gray-700/30 text-foreground/60'
-                        }`}
-                      >
-                        {key.isActive ? 'Active' : 'Inactive'}
-                      </span>
-                    </div>
-                  )}
-                  <div className="mt-2 text-xs text-foreground/50 font-mono">
-                    ID: {key.keyId}
+              <div key={key._id} className="p-6 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div className="flex-1">
+                    {editingKey === key._id ? (
+                      <div className="flex items-center space-x-2">
+                        <Input
+                          type="text"
+                          value={editName}
+                          onChange={(e) => setEditName(e.target.value)}
+                          placeholder="Key name"
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && editName.trim()) {
+                              renameKey(key._id, editName.trim());
+                            }
+                          }}
+                        />
+                        <Button
+                          onClick={() => editName.trim() && renameKey(key._id, editName.trim())}
+                          size="sm"
+                        >
+                          Save
+                        </Button>
+                        <Button
+                          onClick={() => setEditingKey(null)}
+                          variant="outline"
+                          size="sm"
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="flex items-center space-x-3">
+                          <h4 className="font-semibold">{key.name}</h4>
+                          <Button
+                            onClick={() => {
+                              setEditingKey(key._id);
+                              setEditName(key.name);
+                            }}
+                            variant="ghost"
+                            size="sm"
+                          >
+                            ✏️
+                          </Button>
+                          <Badge
+                            variant={key.isActive ? 'default' : 'secondary'}
+                          >
+                            {key.isActive ? 'Active' : 'Inactive'}
+                          </Badge>
+                        </div>
+                        <div className="text-xs text-muted-foreground font-mono">
+                          ID: {key.keyId}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          Usage: {key.usageCount} requests
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Created: {formatTimestamp(key.createdAt)}
+                          {key.lastUsed && ` · Last used: ${formatTimestamp(key.lastUsed)}`}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <div className="mt-1 text-sm text-foreground/70">
-                    Usage: {key.usageCount} requests
+                  <div className="flex gap-2 flex-wrap">
+                    <Button
+                      onClick={() => toggleKeyStatus(key._id)}
+                      variant="outline"
+                      size="sm"
+                    >
+                      {key.isActive ? 'Disable' : 'Enable'}
+                    </Button>
+                    <Button
+                      onClick={() => rotateKey(key._id, key.name)}
+                      variant="outline"
+                      size="sm"
+                    >
+                      Rotate
+                    </Button>
+                    <Button
+                      onClick={() => deleteKey(key._id)}
+                      variant="destructive"
+                      size="sm"
+                    >
+                      Delete
+                    </Button>
                   </div>
-                  <div className="mt-1 text-xs text-foreground/50">
-                    Created: {formatTimestamp(key.createdAt)}
-                    {key.lastUsed && ` · Last used: ${formatTimestamp(key.lastUsed)}`}
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => toggleKeyStatus(key._id)}
-                    className="flex-1 px-4 py-2 text-sm font-medium bg-foreground text-background hover:bg-foreground/90 rounded-lg transition-colors touch-lg"
-                  >
-                    {key.isActive ? 'Disable' : 'Enable'}
-                  </button>
-                  <button
-                    onClick={() => rotateKey(key._id, key.name)}
-                    className="flex-1 px-4 py-2 text-sm font-medium bg-yellow-500 text-white hover:bg-yellow-600 rounded-lg transition-colors touch-lg"
-                    title="Generate a new API key (old one will stop working)"
-                  >
-                    Rotate
-                  </button>
-                  <button
-                    onClick={() => deleteKey(key._id)}
-                    className="flex-1 px-4 py-2 text-sm font-medium bg-red-600 text-white hover:bg-red-700 rounded-lg transition-colors touch-lg"
-                  >
-                    Delete
-                  </button>
                 </div>
               </div>
             ))}
           </div>
         )}
-      </div>
+      </Card>
     </div>
   );
 }
@@ -1330,7 +1258,7 @@ function StatusPanel() {
 
   useEffect(() => {
     fetchStatus();
-    const interval = setInterval(() => fetchStatus({ force: true }), 30000); // Refresh every 30s
+    const interval = setInterval(() => fetchStatus({ force: true }), 30000);
     return () => clearInterval(interval);
   }, [timeInterval, customDays]);
 
@@ -1352,10 +1280,6 @@ function StatusPanel() {
         return;
       }
 
-      if (cached && force) {
-        setStatus(cached);
-      }
-
       const res = await fetch(`/api/status?hours=${hours}`, {
         headers: getAuthHeaders(),
         credentials: 'include',
@@ -1371,192 +1295,187 @@ function StatusPanel() {
   }
 
   if (loading) {
-    return <div className="text-center text-foreground/60">Loading...</div>;
+    return <div className="text-center text-muted-foreground">Loading...</div>;
   }
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-foreground">System Status</h2>
+      <h2 className="text-2xl font-bold">System Status</h2>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Health Status */}
-        <div className="bg-[#1a1a1a] rounded-xl shadow p-6 hover:/40 transition-colors">
-          <h3 className="text-sm font-medium text-foreground/80 uppercase tracking-wider mb-2">
-            System Health
-          </h3>
-          <div className="flex items-center space-x-3">
-            <div
-              className={`w-4 h-4 rounded-full ${
-                status?.status === 'healthy' ? 'bg-emerald-400' : 'bg-red-400'
-              }`}
-            />
-            <span className="text-2xl font-bold text-foreground capitalize">
-              {status?.status || 'Unknown'}
-            </span>
-          </div>
-        </div>
-
-        {/* Total Emails (All Time) */}
-        <div className="bg-[#1a1a1a] rounded-xl shadow p-6 hover:/40 transition-colors">
-          <h3 className="text-sm font-medium text-foreground/80 uppercase tracking-wider mb-2">
-            Emails Sent
-          </h3>
-          <span className="text-2xl font-bold text-foreground">
-            {status?.totalEmailsSent || 0}
-          </span>
-        </div>
-      </div>
-
-      <div className="bg-[#1a1a1a] rounded-xl shadow p-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-          <div>
-            <h3 className="text-lg font-semibold text-foreground">Deliverability Stats</h3>
-            <div className="text-3xl font-bold text-brand-primary mt-2">
-              {status?.deliverability?.period?.successRate || 0}%
-            </div>
-            <p className="text-xs text-foreground/60 mt-1">
-              {timeInterval === 'custom' ? `Last ${customDays} day${customDays !== 1 ? 's' : ''}` : `Last ${timeInterval === '1h' ? '1 hour' : timeInterval === '24h' ? '24 hours' : timeInterval === '7d' ? '7 days' : timeInterval === '30d' ? '30 days' : '90 days'}`}
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {(['1h', '24h', '7d', '30d', '90d'] as const).map((interval) => (
-              <button
-                key={interval}
-                onClick={() => setTimeInterval(interval)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                  timeInterval === interval
-                    ? 'bg-[#0000C0] text-white'
-                    : 'text-foreground hover:bg-[#0000C0]/10'
+        <Card>
+          <CardHeader className="pb-3">
+            <CardDescription>System Health</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center space-x-3">
+              <div
+                className={`w-4 h-4 rounded-full ${
+                  status?.status === 'healthy' ? 'bg-emerald-400' : 'bg-destructive'
                 }`}
-              >
-                {interval === '1h' && '1h'}
-                {interval === '24h' && '24h'}
-                {interval === '7d' && '7d'}
-                {interval === '30d' && '30d'}
-                {interval === '90d' && '90d'}
-              </button>
-            ))}
-            <button
-              onClick={() => setTimeInterval('custom')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                timeInterval === 'custom'
-                  ? 'bg-[#0000C0] text-white'
-                  : 'text-foreground hover:bg-[#0000C0]/10'
-              }`}
-            >
-              Custom
-            </button>
-          </div>
-        </div>
-
-        {/* Custom Days Input */}
-        {timeInterval === 'custom' && (
-          <div className="mb-6 p-4 bg-[#141414] rounded-lg">
-            <div className="flex items-center gap-3">
-              <label htmlFor="customDays" className="text-sm font-medium text-foreground/80">
-                Days:
-              </label>
-              <input
-                type="number"
-                id="customDays"
-                min="1"
-                step="1"
-                value={customDays}
-                onChange={(e) => {
-                  const val = Math.max(1, Math.floor(Number(e.target.value) || 1));
-                  setCustomDays(val);
-                }}
-                className="w-24 px-3 py-2 rounded-lg bg-[#0a0a0a] text-foreground focus:ring-2 focus:ring-[#0000C0] outline-none text-sm transition-all"
               />
-              <button
-                onClick={() => setCustomDays(7)}
-                className="px-4 py-2 rounded-lg text-sm font-medium text-foreground/80 hover:bg-[#0000C0]/10 transition-colors"
-              >
-                Reset
-              </button>
+              <span className="text-2xl font-bold capitalize">
+                {status?.status || 'Unknown'}
+              </span>
             </div>
-          </div>
-        )}
+          </CardContent>
+        </Card>
 
-        {status?.deliverability?.timeSeries && status.deliverability.timeSeries.length > 0 ? (
-          <div className="grid grid-cols-3 gap-4">
-            <div className="bg-[#141414]  rounded-lg p-3">
-              <div className="text-xs text-foreground/70 uppercase tracking-wider mb-1">Total</div>
-              <div className="text-xl font-bold text-foreground">{status.deliverability.period.total}</div>
-            </div>
-            <div className="bg-emerald-600/25 rounded-lg p-3">
-              <div className="text-xs text-emerald-300 uppercase tracking-wider mb-1">Successful</div>
-              <div className="text-xl font-bold text-emerald-300">{status.deliverability.period.successful}</div>
-            </div>
-            <div className="bg-red-600/25 rounded-lg p-3">
-              <div className="text-xs text-red-300 uppercase tracking-wider mb-1">Failed</div>
-              <div className="text-xl font-bold text-red-300">{status.deliverability.period.failed}</div>
-            </div>
-          </div>
-        ) : (
-          <div className="text-center text-foreground/60 py-8">
-            No deliverability data available yet.
-          </div>
-        )}
+        {/* Total Emails */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardDescription>Emails Sent</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <span className="text-2xl font-bold">
+              {status?.totalEmailsSent || 0}
+            </span>
+          </CardContent>
+        </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <CardTitle>Deliverability Stats</CardTitle>
+              <div className="text-3xl font-bold text-primary mt-2">
+                {status?.deliverability?.period?.successRate || 0}%
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {timeInterval === 'custom' ? `Last ${customDays} day${customDays !== 1 ? 's' : ''}` : `Last ${timeInterval === '1h' ? '1 hour' : timeInterval === '24h' ? '24 hours' : timeInterval === '7d' ? '7 days' : timeInterval === '30d' ? '30 days' : '90 days'}`}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {(['1h', '24h', '7d', '30d', '90d'] as const).map((interval) => (
+                <Button
+                  key={interval}
+                  onClick={() => setTimeInterval(interval)}
+                  variant={timeInterval === interval ? 'default' : 'outline'}
+                  size="sm"
+                >
+                  {interval}
+                </Button>
+              ))}
+              <Button
+                onClick={() => setTimeInterval('custom')}
+                variant={timeInterval === 'custom' ? 'default' : 'outline'}
+                size="sm"
+              >
+                Custom
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Custom Days Input */}
+          {timeInterval === 'custom' && (
+            <div className="p-4 bg-muted rounded-lg">
+              <div className="flex items-center gap-3">
+                <Label htmlFor="customDays">Days:</Label>
+                <Input
+                  type="number"
+                  id="customDays"
+                  min="1"
+                  step="1"
+                  value={customDays}
+                  onChange={(e) => {
+                    const val = Math.max(1, Math.floor(Number(e.target.value) || 1));
+                    setCustomDays(val);
+                  }}
+                  className="w-24"
+                />
+                <Button
+                  onClick={() => setCustomDays(7)}
+                  variant="outline"
+                  size="sm"
+                >
+                  Reset
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {status?.deliverability?.timeSeries && status.deliverability.timeSeries.length > 0 ? (
+            <div className="grid grid-cols-3 gap-4">
+              <div className="bg-muted rounded-lg p-3">
+                <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Total</div>
+                <div className="text-xl font-bold">{status.deliverability.period.total}</div>
+              </div>
+              <div className="bg-emerald-600/25 rounded-lg p-3">
+                <div className="text-xs text-emerald-700 dark:text-emerald-300 uppercase tracking-wider mb-1">Successful</div>
+                <div className="text-xl font-bold text-emerald-700 dark:text-emerald-300">{status.deliverability.period.successful}</div>
+              </div>
+              <div className="bg-destructive/25 rounded-lg p-3">
+                <div className="text-xs text-destructive uppercase tracking-wider mb-1">Failed</div>
+                <div className="text-xl font-bold text-destructive">{status.deliverability.period.failed}</div>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center text-muted-foreground py-8">
+              No deliverability data available yet.
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Rate Limit Status */}
-      <div className="bg-[#1a1a1a] rounded-xl shadow p-6">
-        <h3 className="text-lg font-semibold text-foreground mb-4">Provider Rate Limits</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* NotificationAPI */}
-          <div className="bg-[#141414] rounded-lg py-4 px-8">
-            <div className="flex items-center justify-between">
-              <h4 className="font-medium text-foreground">NotificationAPI</h4>
-              <span
-                className={`px-3 py-1.5 text-xs rounded-full font-semibold ${
-                  status?.rateLimits?.notificationapi?.isLimited
-                    ? 'bg-red-600/30 text-red-300'
-                    : 'bg-emerald-600/30 text-emerald-300'
-                }`}
-              >
-                {status?.rateLimits?.notificationapi?.isLimited ? 'Rate Limited' : 'Available'}
-              </span>
+      <Card>
+        <CardHeader>
+          <CardTitle>Provider Rate Limits</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* NotificationAPI */}
+            <div className="bg-muted rounded-lg py-4 px-4">
+              <div className="flex items-center justify-between">
+                <h4 className="font-medium">NotificationAPI</h4>
+                <Badge
+                  variant={
+                    status?.rateLimits?.notificationapi?.isLimited
+                      ? 'destructive'
+                      : 'default'
+                  }
+                >
+                  {status?.rateLimits?.notificationapi?.isLimited ? 'Rate Limited' : 'Available'}
+                </Badge>
+              </div>
+              {status?.rateLimits?.notificationapi?.isLimited && (
+                <p className="text-sm text-muted-foreground mt-2">
+                  Backoff until: {formatTimestamp(status.rateLimits.notificationapi.backoffUntil)}
+                </p>
+              )}
             </div>
-            {status?.rateLimits?.notificationapi?.isLimited && (
-              <p className="text-sm text-foreground/80">
-                Backoff until:{' '}
-                {formatTimestamp(status.rateLimits.notificationapi.backoffUntil)}
-              </p>
-            )}
-          </div>
 
-          {/* Brevo */}
-          <div className="bg-[#141414] rounded-lg py-4 px-8">
-            <div className="flex items-center justify-between">
-              <h4 className="font-medium text-foreground">Brevo</h4>
-              <span
-                className={`px-3 py-1.5 text-xs rounded-full font-semibold ${
-                  status?.rateLimits?.brevo?.isLimited
-                    ? 'bg-red-600/30 text-red-300'
-                    : 'bg-emerald-600/30 text-emerald-300'
-                }`}
-              >
-                {status?.rateLimits?.brevo?.isLimited ? 'Rate Limited' : 'Available'}
-              </span>
+            {/* Brevo */}
+            <div className="bg-muted rounded-lg py-4 px-4">
+              <div className="flex items-center justify-between">
+                <h4 className="font-medium">Brevo</h4>
+                <Badge
+                  variant={
+                    status?.rateLimits?.brevo?.isLimited
+                      ? 'destructive'
+                      : 'default'
+                  }
+                >
+                  {status?.rateLimits?.brevo?.isLimited ? 'Rate Limited' : 'Available'}
+                </Badge>
+              </div>
+              {status?.rateLimits?.brevo?.isLimited && (
+                <p className="text-sm text-muted-foreground mt-2">
+                  Backoff until: {formatTimestamp(status.rateLimits.brevo.backoffUntil)}
+                </p>
+              )}
             </div>
-            {status?.rateLimits?.brevo?.isLimited && (
-              <p className="text-sm text-foreground/80">
-                Backoff until:{' '}
-                {formatTimestamp(status.rateLimits.brevo.backoffUntil)}
-              </p>
-            )}
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       <div className="text-center">
-        <button
-          onClick={() => fetchStatus()}
-          className="gradient-button text-white font-medium px-6 py-2 rounded-lg"
-        >
+        <Button onClick={() => fetchStatus()}>
           Refresh Status
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -1621,68 +1540,71 @@ function DocsPanel() {
     <div className="space-y-8">
       {/* API Documentation */}
       <section>
-        <h2 className="text-2xl font-bold text-foreground mb-4">API Documentation</h2>
-        <div className="bg-[#1a1a1a] rounded-xl shadow p-6 space-y-6">
-          {/* Endpoint Overview */}
-          <div>
-            <h3 className="text-lg font-semibold text-foreground mb-3">Send Email Endpoint</h3>
-            <div className="bg-[#141414] rounded-lg p-4 font-mono text-sm text-foreground mb-4 overflow-x-auto">
-              <div className="text-[#0000C0] font-bold">POST</div>
-              <div className="text-foreground/80">{typeof window !== 'undefined' ? window.location.origin : ''}/api/send-mail</div>
+        <h2 className="text-2xl font-bold mb-4">API Documentation</h2>
+        <Card>
+          <CardHeader>
+            <CardTitle>Send Email Endpoint</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Endpoint Overview */}
+            <div>
+              <div className="bg-muted rounded-lg p-4 font-mono text-sm mb-4 overflow-x-auto">
+                <div className="text-primary font-bold">POST</div>
+                <div>{typeof window !== 'undefined' ? window.location.origin : ''}/api/send-mail</div>
+              </div>
+
+              <h4 className="font-semibold mb-2">Authentication</h4>
+              <p className="text-muted-foreground text-sm mb-3">
+                Include your API key in the Authorization header using the Bearer scheme:
+              </p>
+              <div className="bg-muted rounded-lg p-4 font-mono text-sm overflow-x-auto">
+                Authorization: Bearer &lt;your-api-key&gt;
+              </div>
             </div>
 
-            <h4 className="font-semibold text-foreground mb-2">Authentication</h4>
-            <p className="text-foreground/80 text-sm mb-3">
-              Include your API key in the Authorization header using the Bearer scheme:
-            </p>
-            <div className="bg-[#141414] rounded-lg p-4 font-mono text-sm text-foreground overflow-x-auto">
-              Authorization: Bearer &lt;your-api-key&gt;
-            </div>
-          </div>
-
-          {/* Request Body */}
-          <div>
-            <h4 className="font-semibold text-foreground mb-2">Request Body</h4>
-            <p className="text-foreground/80 text-sm mb-3">JSON payload with the following fields:</p>
-            <div className="bg-[#141414] rounded-lg p-4 font-mono text-xs text-foreground overflow-x-auto">
-              <pre>{`{
+            {/* Request Body */}
+            <div>
+              <h4 className="font-semibold mb-2">Request Body</h4>
+              <p className="text-muted-foreground text-sm mb-3">JSON payload with the following fields:</p>
+              <div className="bg-muted rounded-lg p-4 font-mono text-xs overflow-x-auto">
+                <pre>{`{
   "to": "recipient@example.com",
   "subject": "Email Subject",
   "html": "<p>Email body in HTML</p>",
   "senderName": "Your App",
   "senderEmail": "noreply@example.com"
 }`}</pre>
+              </div>
+
+              <div className="mt-4 space-y-3">
+                <div>
+                  <span className="font-mono text-sm text-primary">to</span>
+                  <span className="text-sm text-muted-foreground"> (required): Recipient email address</span>
+                </div>
+                <div>
+                  <span className="font-mono text-sm text-primary">subject</span>
+                  <span className="text-sm text-muted-foreground"> (required): Email subject line</span>
+                </div>
+                <div>
+                  <span className="font-mono text-sm text-primary">html</span>
+                  <span className="text-sm text-muted-foreground"> (required): Email body in HTML format</span>
+                </div>
+                <div>
+                  <span className="font-mono text-sm text-primary">senderName</span>
+                  <span className="text-sm text-muted-foreground"> (optional): Display name of sender</span>
+                </div>
+                <div>
+                  <span className="font-mono text-sm text-primary">senderEmail</span>
+                  <span className="text-sm text-muted-foreground"> (optional): Email address to send from</span>
+                </div>
+              </div>
             </div>
 
-            <div className="mt-4 space-y-3">
-              <div>
-                <span className="font-mono text-sm text-[#0000C0]">to</span>
-                <span className="text-sm text-foreground/80"> (required): Recipient email address</span>
-              </div>
-              <div>
-                <span className="font-mono text-sm text-[#0000C0]">subject</span>
-                <span className="text-sm text-foreground/80"> (required): Email subject line</span>
-              </div>
-              <div>
-                <span className="font-mono text-sm text-[#0000C0]">html</span>
-                <span className="text-sm text-foreground/80"> (required): Email body in HTML format</span>
-              </div>
-              <div>
-                <span className="font-mono text-sm text-[#0000C0]">senderName</span>
-                <span className="text-sm text-foreground/80"> (optional): Display name of sender</span>
-              </div>
-              <div>
-                <span className="font-mono text-sm text-[#0000C0]">senderEmail</span>
-                <span className="text-sm text-foreground/80"> (optional): Email address to send from</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Example cURL */}
-          <div>
-            <h4 className="font-semibold text-foreground mb-2">Example Request (cURL)</h4>
-            <div className="bg-[#141414] rounded-lg p-4 font-mono text-xs text-foreground overflow-x-auto">
-              <pre>{`curl -X POST https://your-domain.com/api/send-mail \\
+            {/* Example cURL */}
+            <div>
+              <h4 className="font-semibold mb-2">Example Request (cURL)</h4>
+              <div className="bg-muted rounded-lg p-4 font-mono text-xs overflow-x-auto">
+                <pre>{`curl -X POST https://your-domain.com/api/send-mail \\
   -H "Content-Type: application/json" \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
   -d '{
@@ -1692,179 +1614,163 @@ function DocsPanel() {
     "senderName": "My App",
     "senderEmail": "noreply@myapp.com"
   }'`}</pre>
+              </div>
             </div>
-          </div>
 
-          {/* Response */}
-          <div>
-            <h4 className="font-semibold text-foreground mb-2">Response</h4>
-            <p className="text-foreground/80 text-sm mb-3">On success:</p>
-            <div className="bg-[#141414] rounded-lg p-4 font-mono text-xs text-foreground overflow-x-auto mb-3">
-              <pre>{`{
+            {/* Response */}
+            <div>
+              <h4 className="font-semibold mb-2">Response</h4>
+              <p className="text-muted-foreground text-sm mb-3">On success:</p>
+              <div className="bg-muted rounded-lg p-4 font-mono text-xs overflow-x-auto mb-3">
+                <pre>{`{
   "success": true,
   "message": "Email sent successfully"
 }`}</pre>
-            </div>
-            <p className="text-foreground/80 text-sm mb-3">On error:</p>
-            <div className="bg-[#141414] rounded-lg p-4 font-mono text-xs text-foreground overflow-x-auto">
-              <pre>{`{
+              </div>
+              <p className="text-muted-foreground text-sm mb-3">On error:</p>
+              <div className="bg-muted rounded-lg p-4 font-mono text-xs overflow-x-auto">
+                <pre>{`{
   "success": false,
   "message": "Error description"
 }`}</pre>
+              </div>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </section>
 
       {/* Test Email Form */}
       <section>
-        <h2 className="text-2xl font-bold text-foreground mb-4">Test Email</h2>
-        <div className="bg-[#1a1a1a] rounded-xl shadow p-6">
-          <p className="text-foreground/80 text-sm mb-4">
-            Send a test email to verify your setup is working correctly.
-          </p>
-          
-          <div className="bg-[#141414] rounded-lg p-4 mb-6">
-            <h3 className="text-sm font-semibold text-foreground mb-2">How to use:</h3>
-            <ul className="text-xs text-foreground/70 space-y-1">
-              <li>• <strong>API Key:</strong> Paste an active API key (only for testing, not included in request)</li>
-              <li>• <strong>Recipient Email:</strong> Where to send the test email</li>
-              <li>• <strong>Sender Name:</strong> Display name for the sender (e.g., "My Service")</li>
-              <li>• <strong>Sender Email:</strong> The "from" address (must be verified with your email provider)</li>
-              <li>• <strong>Subject & Body:</strong> Email content to send</li>
-              <li>• Emails route through <strong>Brevo</strong> first, then fallback to <strong>NotificationAPI</strong></li>
-              <li>• Check your spam folder if the email doesn't arrive</li>
-            </ul>
-          </div>
+        <h2 className="text-2xl font-bold mb-4">Test Email</h2>
+        <Card>
+          <CardHeader>
+            <CardTitle>Send Test Email</CardTitle>
+            <CardDescription>
+              Send a test email to verify your setup is working correctly.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="bg-muted rounded-lg p-4">
+              <h3 className="text-sm font-semibold mb-2">How to use:</h3>
+              <ul className="text-xs text-muted-foreground space-y-1">
+                <li>• <strong>API Key:</strong> Paste an active API key (only for testing, not included in request)</li>
+                <li>• <strong>Recipient Email:</strong> Where to send the test email</li>
+                <li>• <strong>Sender Name:</strong> Display name for the sender (e.g., "My Service")</li>
+                <li>• <strong>Sender Email:</strong> The "from" address (must be verified with your email provider)</li>
+                <li>• <strong>Subject & Body:</strong> Email content to send</li>
+                <li>• Emails route through <strong>Brevo</strong> first, then fallback to <strong>NotificationAPI</strong></li>
+                <li>• Check your spam folder if the email doesn't arrive</li>
+              </ul>
+            </div>
 
-          <form onSubmit={sendTestEmail} className="space-y-4">
-            {/* API Key Input */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label htmlFor="apiKey" className="block text-sm font-medium text-foreground">
-                  API Key
-                </label>
-                <button
-                  type="button"
-                  onClick={() => setShowApiKeyInput(!showApiKeyInput)}
-                  className="text-xs font-medium text-foreground/60 hover:text-[#0000C0] transition-colors"
-                >
-                  {showApiKeyInput ? 'Hide' : 'Show'}
-                </button>
+            <form onSubmit={sendTestEmail} className="space-y-4">
+              {/* API Key Input */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="apiKey">API Key</Label>
+                  <Button
+                    type="button"
+                    onClick={() => setShowApiKeyInput(!showApiKeyInput)}
+                    variant="ghost"
+                    size="sm"
+                  >
+                    {showApiKeyInput ? 'Hide' : 'Show'}
+                  </Button>
+                </div>
+                <Input
+                  type={showApiKeyInput ? 'text' : 'password'}
+                  id="apiKey"
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  placeholder="Enter your API key"
+                  required
+                />
               </div>
-              <input
-                type={showApiKeyInput ? 'text' : 'password'}
-                id="apiKey"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                className="w-full px-4 py-2 rounded-lg bg-[#141414] text-foreground focus:ring-2 focus:ring-[#0000C0] placeholder-foreground/40 text-sm transition-all"
-                placeholder="Enter your API key"
-                required
-              />
-            </div>
 
-            {/* Sender Name */}
-            <div>
-              <label htmlFor="senderName" className="block text-sm font-medium text-foreground mb-2">
-                Sender Name
-              </label>
-              <input
-                type="text"
-                id="senderName"
-                value={testSenderName}
-                onChange={(e) => setTestSenderName(e.target.value)}
-                className="w-full px-4 py-2 rounded-lg bg-[#141414] text-foreground focus:ring-2 focus:ring-[#0000C0] placeholder-foreground/40 text-sm transition-all"
-                placeholder="Your App Name"
-                required
-              />
-            </div>
+              {/* Sender Name */}
+              <div className="space-y-2">
+                <Label htmlFor="senderName">Sender Name</Label>
+                <Input
+                  type="text"
+                  id="senderName"
+                  value={testSenderName}
+                  onChange={(e) => setTestSenderName(e.target.value)}
+                  placeholder="Your App Name"
+                  required
+                />
+              </div>
 
-            {/* Sender Email */}
-            <div>
-              <label htmlFor="senderEmail" className="block text-sm font-medium text-foreground mb-2">
-                Sender Email
-              </label>
-              <input
-                type="email"
-                id="senderEmail"
-                value={testSenderEmail}
-                onChange={(e) => setTestSenderEmail(e.target.value)}
-                className="w-full px-4 py-2 rounded-lg bg-[#141414] text-foreground focus:ring-2 focus:ring-[#0000C0] placeholder-foreground/40 text-sm transition-all"
-                placeholder="noreply@example.com"
-                required
-              />
-            </div>
+              {/* Sender Email */}
+              <div className="space-y-2">
+                <Label htmlFor="senderEmail">Sender Email</Label>
+                <Input
+                  type="email"
+                  id="senderEmail"
+                  value={testSenderEmail}
+                  onChange={(e) => setTestSenderEmail(e.target.value)}
+                  placeholder="noreply@example.com"
+                  required
+                />
+              </div>
 
-            {/* Recipient Email */}
-            <div>
-              <label htmlFor="testEmail" className="block text-sm font-medium text-foreground mb-2">
-                Recipient Email
-              </label>
-              <input
-                type="email"
-                id="testEmail"
-                value={testEmail}
-                onChange={(e) => setTestEmail(e.target.value)}
-                className="w-full px-4 py-2 rounded-lg bg-[#141414] text-foreground focus:ring-2 focus:ring-[#0000C0] placeholder-foreground/40 text-sm transition-all"
-                placeholder="recipient@example.com"
-                required
-              />
-            </div>
+              {/* Recipient Email */}
+              <div className="space-y-2">
+                <Label htmlFor="testEmail">Recipient Email</Label>
+                <Input
+                  type="email"
+                  id="testEmail"
+                  value={testEmail}
+                  onChange={(e) => setTestEmail(e.target.value)}
+                  placeholder="recipient@example.com"
+                  required
+                />
+              </div>
 
-            {/* Subject */}
-            <div>
-              <label htmlFor="testSubject" className="block text-sm font-medium text-foreground mb-2">
-                Subject
-              </label>
-              <input
-                type="text"
-                id="testSubject"
-                value={testSubject}
-                onChange={(e) => setTestSubject(e.target.value)}
-                className="w-full px-4 py-2 rounded-lg bg-[#141414] text-foreground focus:ring-2 focus:ring-[#0000C0] placeholder-foreground/40 text-sm transition-all"
-                placeholder="Email subject"
-                required
-              />
-            </div>
+              {/* Subject */}
+              <div className="space-y-2">
+                <Label htmlFor="testSubject">Subject</Label>
+                <Input
+                  type="text"
+                  id="testSubject"
+                  value={testSubject}
+                  onChange={(e) => setTestSubject(e.target.value)}
+                  placeholder="Email subject"
+                  required
+                />
+              </div>
 
-            {/* Body */}
-            <div>
-              <label htmlFor="testBody" className="block text-sm font-medium text-foreground mb-2">
-                Body (Plain Text)
-              </label>
-              <textarea
-                id="testBody"
-                value={testBody}
-                onChange={(e) => setTestBody(e.target.value)}
-                className="w-full px-4 py-2 rounded-lg bg-[#141414] text-foreground focus:ring-2 focus:ring-[#0000C0] placeholder-foreground/40 text-sm h-32 resize-none transition-all"
-                placeholder="Email body text"
-                required
-              />
-            </div>
+              {/* Body */}
+              <div className="space-y-2">
+                <Label htmlFor="testBody">Body (Plain Text)</Label>
+                <Textarea
+                  id="testBody"
+                  value={testBody}
+                  onChange={(e) => setTestBody(e.target.value)}
+                  placeholder="Email body text"
+                  rows={5}
+                  required
+                />
+              </div>
 
-            {/* Messages */}
-            {testMessage && (
-              <div
-                className={`px-4 py-3 rounded-lg text-sm border ${
-                  testMessage.type === 'success'
-                    ? 'bg-green-900/30 text-green-400 border-green-800'
-                    : 'bg-red-900/30 text-red-400 border-red-800'
-                }`}
+              {/* Messages */}
+              {testMessage && (
+                <Alert variant={testMessage.type === 'success' ? 'default' : 'destructive'}>
+                  <AlertDescription>{testMessage.text}</AlertDescription>
+                </Alert>
+              )}
+
+              {/* Send Button */}
+              <Button
+                type="submit"
+                disabled={testLoading}
+                className="w-full"
+                size="lg"
               >
-                {testMessage.text}
-              </div>
-            )}
-
-            {/* Send Button */}
-            <button
-              type="submit"
-              disabled={testLoading}
-              className="w-full gradient-button text-white font-semibold py-3 px-4 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {testLoading ? 'Sending...' : 'Send Test Email'}
-            </button>
-          </form>
-        </div>
+                {testLoading ? 'Sending...' : 'Send Test Email'}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
       </section>
     </div>
   );
