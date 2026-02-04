@@ -128,7 +128,7 @@ export default function AdminLayout({
 
               <Button
                 onClick={handleLogout}
-                className="bg-white/95 hover:bg-white font-medium backdrop-blur-sm shadow-md"
+                className="bg-white/95 hover:bg-white text-gray-900 font-medium backdrop-blur-sm shadow-md"
                 size="sm"
               >
                 Logout
