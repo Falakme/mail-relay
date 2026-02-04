@@ -69,12 +69,17 @@ Head to http://localhost:3000 and log in with your `SITE_KEY`.
 
 ## Screenshots
 
-![Login](/public/screenshots/login.png)
-![Email Logs](/public/screenshots/logs1.png)
-![Email Logs](/public/screenshots/logs2.png)
-![API Keys](/public/screenshots/keys1.png)
-![Status](/public/screenshots/status1.png)
-![Documentation](/public/screenshots/docs1.png)
+### Light Mode
+![Email Logs (Light)](public/screenshots/light/logs.jpg)
+![API Keys (Light)](public/screenshots/light/keys.jpg)
+![System Status (Light)](public/screenshots/light/status.jpg)
+![Documentation (Light)](public/screenshots/light/docs.jpg)
+
+### Dark Mode
+![Email Logs (Dark)](public/screenshots/dark/logs.jpg)
+![API Keys (Dark)](public/screenshots/dark/keys.jpg)
+![System Status (Dark)](public/screenshots/dark/status.jpg)
+![Documentation (Dark)](public/screenshots/dark/docs.jpg)
 
 ## Configuration
 
@@ -160,13 +165,16 @@ bun test:watch
 ```
 mail-relay/
 ├── app/
+│   ├── (admin)/             # Admin dashboard pages
 │   ├── api/                 # API routes
-│   ├── page.tsx             # Admin dashboard
-│   └── globals.css          # Styling
+│   ├── page.tsx             # Login page
+│   └── globals.css          # Global styles
+├── components/              # UI components
 ├── convex/                  # Database schema + functions
 ├── lib/                     # Auth, email logic, crypto
-├── public/                  # Static files & screenshots
-└── example.env              # Copy to .env
+├── public/
+│   └── screenshots/         # UI screenshots
+└── test/                    # Test files
 ```
 
 ## Setting up the providers
